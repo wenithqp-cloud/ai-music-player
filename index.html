@@ -15,20 +15,16 @@
 
     <section id="player">
       <p id="current-file">No file or video selected</p>
-
-      <!-- Local files -->
       <input type="file" id="file-picker" accept="audio/*" multiple>
       <div class="button-row">
         <button id="play-local-btn">Play File</button>
         <button id="stop-btn">Stop</button>
       </div>
 
-      <!-- YouTube -->
       <input type="text" id="youtube-url" placeholder="Paste YouTube URL here">
       <button id="play-youtube-btn">Play YouTube</button>
       <div id="youtube-player"></div>
 
-      <!-- AI Suggestions -->
       <div id="youtube-suggestions">
         <h3>Recommended Music:</h3>
         <ul id="suggestions-list"></ul>
