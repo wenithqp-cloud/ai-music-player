@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Music Player</title>
+<link rel="stylesheet" href="style.css">
+<link rel="manifest" href="manifest.json">
+<script src="theme.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<header>
+  <h2>🎧 AI Music Player</h2>
+  <div class="header-right">
+    <a href="settings.html">⚙️</a>
+    <button onclick="logout()">Logout</button>
+  </div>
+</header>
+
+<div class="card" id="playerCard">
+  <div id="localSection">
+    <input type="file" id="fileInput" accept="audio/*" multiple>
+    <ul id="playlist"></ul>
+  </div>
+  <div id="youtubeSection" style="display:none;">
+    <input type="text" id="ytLink" placeholder="Paste YouTube Playlist Link">
+    <button onclick="loadYouTube()">Load Playlist</button>
+    <div id="ytPlayer"></div>
+  </div>
+
+  <audio id="audio" controls></audio>
+  <canvas id="visualizer" width="600" height="150"></canvas>
+</div>
+
+<div class="card" id="dashboardCard">
+  <h3>Stats</h3>
+  <p id="totalTime">Total Listening Time: 0 min</p>
+  <p id="favoriteMood">Favorite Mood: -</p>
+  <ul id="friendStats"></ul>
+  <canvas id="weeklyChart" width="400" height="200"></canvas>
+</div>
+
+<script src="app.js"></script>
+<script>
+if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js'); }
+</script>
+</body>
+</html>
