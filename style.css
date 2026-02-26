@@ -1,0 +1,71 @@
+body {
+  font-family: 'Fira Sans', sans-serif;
+  margin: 0;
+  padding: 20px;
+  text-align: center;
+  background-color: #121212;
+  color: #ffffff;
+}
+
+h1 { font-weight: 600; margin-bottom: 20px; }
+
+section {
+  margin-top: 25px;
+  padding: 15px;
+  border-radius: 12px;
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+input[type="file"], input[type="text"] {
+  padding: 10px;
+  margin: 5px 0;
+  border-radius: 8px;
+  border: none;
+  width: 80%;
+  max-width: 400px;
+}
+
+button {
+  padding: 10px 20px;
+  margin: 5px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  transition: transform 0.1s ease-in-out, background 0.2s;
+}
+
+button:hover { transform: scale(1.05); }
+
+.button-row { display: flex; justify-content: center; flex-wrap: wrap; }
+
+#youtube-player {
+  margin-top: 15px;
+  width: 100%;
+  max-width: 560px;
+  height: 315px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+ul { list-style: none; padding: 0; }
+
+li {
+  display: flex;
+  justify-content: space-between;
+  margin: 5px 0;
+  padding: 8px;
+  border-radius: 8px;
+  background-color: rgba(255,255,255,0.1);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+li:hover { background-color: rgba(255,255,255,0.2); }
+
+.remove-btn {
+  background-color: #ff4d4d;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+}
