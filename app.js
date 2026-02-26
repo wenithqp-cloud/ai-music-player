@@ -2,7 +2,7 @@
 const CURRENT_VERSION = "1.0.0";
 const VERSION_URL = "https://yourusername.github.io/ai-music-player/version.json";
 const APK_URL = "https://yourusername.github.io/ai-music-player/ai-music-player.apk";
-const CLIENT_ID = 'YOUR_GOOGLE_OAUTH_CLIENT_ID';
+const CLIENT_ID = '412981941442-fpvklbdmdla6f57p6k6udckt2sdgm5ir.apps.googleusercontent.com';
 const SCOPES = 'https://www.googleapis.com/auth/youtube.readonly';
 
 // -------------------- ELEMENTS --------------------
@@ -94,7 +94,7 @@ function suggestYouTubeVideos(){
 }
 
 function searchYouTube(query){
-  fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=5&q=${encodeURIComponent(query)}&key=YOUR_YOUTUBE_API_KEY`)
+  fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=5&q=${encodeURIComponent(query)}&key=AIzaSyCAIUbGe6i20RFzU85O29DuL0cTuQi7ABo')
     .then(res=>res.json())
     .then(data=>{ if(data.items && data.items.length>0){ addYouTubeToPlaylist(data.items[0].id.videoId,data.items[0].snippet.title); playPlaylistItem(playlist.length-1); playHistory.push({name:data.items[0].snippet.title,type:"youtube"}); } });
 }
