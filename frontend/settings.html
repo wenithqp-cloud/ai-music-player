@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Settings</title>
+<link rel="stylesheet" href="style.css">
+<script src="theme.js"></script>
+</head>
+<body>
+<header>
+  <h2>⚙️ Settings</h2>
+  <a href="app.html">⬅</a>
+</header>
+
+<div class="card">
+  <h3>App Settings</h3>
+  <label>
+    <input type="radio" name="mode" value="local"> Local Files
+  </label>
+  <label>
+    <input type="radio" name="mode" value="youtube"> YouTube Streaming
+  </label>
+  <label>Visualizer:</label>
+  <input type="checkbox" id="visualizerToggle" checked>
+  <label>Smart Shuffle:</label>
+  <input type="checkbox" id="shuffleToggle" checked>
+  <label>Theme:</label>
+  <select id="themeSelect" onchange="changeTheme(this.value)">
+    <option value="dark">Dark</option>
+    <option value="light">Light</option>
+    <option value="ocean">Ocean</option>
+    <option value="sunset">Sunset</option>
+  </select>
+</div>
+
+<script>
+const savedMode = localStorage.getItem("mode") || "local";
+document.querySelectorAll("input[name='mode']").forEach(r=>{
+  r.checked = r.value===savedMode;
+  r.addEventListener("change", e=>{ localStorage.setItem("mode",e.target.value); });
+});
+
+document.getElementById("themeSelect").value = localStorage.getItem("theme") || "dark";
+document.getElementById("visualizerToggle").checked = JSON.parse(localStorage.getItem("visualizer")||"true");
+document.getElementById("shuffleToggle").checked = JSON.parse(localStorage.getItem("shuffle")||"true");
+
+document.getElementById("visualizerToggle").addEventListener("change", e=>{ localStorage.setItem("visualizer", e.target.checked); });
+document.getElementById("shuffleToggle").addEventListener("change", e=>{ localStorage.setItem("shuffle", e.target.checked); });
+</script>
+</body>
+</html>
