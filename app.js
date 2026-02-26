@@ -1,7 +1,7 @@
 // -------------------- CONFIG --------------------
 const CURRENT_VERSION = "1.0.0";
-const VERSION_URL = "https://yourusername.github.io/ai-music-player/version.json";
-const APK_URL = "https://yourusername.github.io/ai-music-player/ai-music-player.apk";
+const VERSION_URL = "https://wenithqp-cloud.github.io/ai-music-player/version.json";
+const APK_URL = "https://wenithqp-cloud.github.io/ai-music-player/ai-music-player.apk";
 const CLIENT_ID = '412981941442-fpvklbdmdla6f57p6k6udckt2sdgm5ir.apps.googleusercontent.com';
 const SCOPES = 'https://www.googleapis.com/auth/youtube.readonly';
 
