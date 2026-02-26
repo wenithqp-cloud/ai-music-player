@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Register - AI Music Player</title>
+<link rel="stylesheet" href="style.css">
+<script src="theme.js"></script>
+</head>
+<body>
+<div class="card">
+  <h2>Register</h2>
+  <input type="text" id="username" placeholder="Username">
+  <input type="email" id="email" placeholder="Email">
+  <input type="password" id="password" placeholder="Password">
+  <input type="text" id="inviteCode" placeholder="Invite Code">
+  <button onclick="register()">Register</button>
+  <p>Already have an account? <a href="index.html">Login</a></p>
+
+  <div class="theme-toggle">
+    <label>Theme:</label>
+    <select id="themeSelect" onchange="changeTheme(this.value)">
+      <option value="dark">Dark</option>
+      <option value="light">Light</option>
+      <option value="ocean">Ocean</option>
+      <option value="sunset">Sunset</option>
+    </select>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
