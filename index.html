@@ -1,66 +1,50 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Music Player</title>
-  <link rel="stylesheet" href="style.css">
-  <link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@400;600&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>INFECTED PLAYER – SAFE ROOM</title>
+<link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
-  <div id="app">
-    <header>
-      <h1>🎵 AI Music Player</h1>
-    </header>
 
-    <section id="player">
-      <p id="current-file">No file or video selected</p>
-      <input type="file" id="file-picker" accept="audio/*" multiple>
-      <div class="button-row">
-        <button id="play-local-btn">Play File</button>
-        <button id="stop-btn">Stop</button>
-      </div>
+<div id="loadingScreen">
+  <h1>INFECTED PLAYER</h1>
+  <div class="bar"><div id="fill"></div></div>
+</div>
 
-      <input type="text" id="youtube-url" placeholder="Paste YouTube URL here">
-      <button id="play-youtube-btn">Play YouTube</button>
-      <div id="youtube-player"></div>
+<div id="safeRoom"></div>
 
-      <div id="youtube-suggestions">
-        <h3>Recommended Music:</h3>
-        <ul id="suggestions-list"></ul>
-      </div>
-    </section>
+<div id="app">
 
-    <section id="playlist-section">
-      <h3>Playlist</h3>
-      <ul id="playlist-list"></ul>
-    </section>
+  <header>SAFE ROOM PLAYLIST</header>
 
-    <section id="youtube-login">
-      <h3>Connect to YouTube</h3>
-      <button id="youtube-login-btn">Login with YouTube</button>
-      <div id="youtube-playlists"></div>
-    </section>
+  <section class="panel">
+    <h3>📂 Local Music</h3>
+    <input type="file" id="folderInput" webkitdirectory multiple>
+    <div id="localList"></div>
+  </section>
 
-    <section id="settings">
-      <h3>Choose Theme:</h3>
-      <div class="button-row">
-        <button data-theme="dark">Dark</button>
-        <button data-theme="light">Light</button>
-        <button data-theme="neon">Neon</button>
-        <button data-theme="ocean">Ocean</button>
-        <button data-theme="sunset">Sunset</button>
-      </div>
-    </section>
+  <section class="panel">
+    <h3>🎚 10-Band EQ</h3>
+    <div id="eq"></div>
+  </section>
 
-    <section id="share">
-      <h3>Share with friends:</h3>
-      <button id="share-btn">Copy App Link</button>
-    </section>
+  <section class="panel">
+    <canvas id="visualizer"></canvas>
+  </section>
+
+  <div class="controls">
+    <button onclick="prev()">⏮</button>
+    <button onclick="playPause()">⏯</button>
+    <button onclick="next()">⏭</button>
+    <input type="range" min="0.5" max="2" step="0.1" value="1" 
+           onchange="audio.playbackRate=this.value">
   </div>
 
-  <script src="https://www.youtube.com/iframe_api"></script>
-  <script src="https://apis.google.com/js/api.js"></script>
-  <script src="app.js"></script>
+</div>
+
+<audio id="audio"></audio>
+<script src="app.js"></script>
 </body>
 </html>
