@@ -1,50 +1,277 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>INFECTED PLAYER – SAFE ROOM</title>
-<link rel="stylesheet" href="styles.css">
-</head>
+<title>Extreme MP3 Platform</title>
 
+<style>
+:root{
+--bg:#0f0f0f;
+--panel:#1b1b1b;
+--accent:#ff3c3c;
+--text:#fff;
+}
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
+body{background:var(--bg);color:var(--text)}
+nav{display:flex;gap:10px;padding:15px;background:var(--panel);position:fixed;width:100%;z-index:1000}
+nav button{background:#222;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer}
+.page{display:none;padding:90px 20px 180px}
+.card{background:var(--panel);padding:12px;margin-bottom:10px;border-radius:10px}
+button{background:var(--accent);border:none;color:#fff;padding:6px 10px;border-radius:6px;cursor:pointer}
+input,select,textarea{padding:6px;margin:5px 0;border-radius:6px;border:none;width:100%}
+#miniPlayer{position:fixed;bottom:0;width:100%;background:#111;padding:15px;display:flex;flex-direction:column;gap:8px}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+#visualizer{width:100%;height:80px;background:#000;border-radius:8px}
+.queue-item{background:#222;padding:6px;margin:4px 0;border-radius:6px;cursor:grab}
+.cover{width:70px;height:70px;object-fit:cover;border-radius:8px}
+.lyrics{max-height:150px;overflow-y:auto;background:#000;padding:10px;border-radius:8px;font-size:14px}
+</style>
+</head>
 <body>
 
-<div id="loadingScreen">
-  <h1>INFECTED PLAYER</h1>
-  <div class="bar"><div id="fill"></div></div>
+<nav>
+<button onclick="go('library')">Library</button>
+<button onclick="go('queue')">Queue</button>
+<button onclick="go('playlists')">Playlists</button>
+<button onclick="go('settings')">Settings</button>
+</nav>
+
+<div id="library" class="page">
+<h2>Library</h2>
+<input type="file" multiple accept=".mp3" id="fileInput">
+<div id="libraryList"></div>
 </div>
 
-<div id="safeRoom"></div>
-
-<div id="app">
-
-  <header>SAFE ROOM PLAYLIST</header>
-
-  <section class="panel">
-    <h3>📂 Local Music</h3>
-    <input type="file" id="folderInput" webkitdirectory multiple>
-    <div id="localList"></div>
-  </section>
-
-  <section class="panel">
-    <h3>🎚 10-Band EQ</h3>
-    <div id="eq"></div>
-  </section>
-
-  <section class="panel">
-    <canvas id="visualizer"></canvas>
-  </section>
-
-  <div class="controls">
-    <button onclick="prev()">⏮</button>
-    <button onclick="playPause()">⏯</button>
-    <button onclick="next()">⏭</button>
-    <input type="range" min="0.5" max="2" step="0.1" value="1" 
-           onchange="audio.playbackRate=this.value">
-  </div>
-
+<div id="queue" class="page">
+<h2>Queue</h2>
+<div id="queueList"></div>
 </div>
 
-<audio id="audio"></audio>
-<script src="app.js"></script>
+<div id="playlists" class="page">
+<h2>Playlists</h2>
+<input id="playlistName" placeholder="Playlist name">
+<button onclick="createPlaylist()">Create</button>
+<button onclick="exportPlaylists()">Export</button>
+<input type="file" onchange="importPlaylists(event)">
+<div id="playlistContainer"></div>
+</div>
+
+<div id="settings" class="page">
+<h2>Audio Settings</h2>
+
+<label>Playback Speed</label>
+<select onchange="audio.playbackRate=this.value">
+<option value="1">1x</option>
+<option value="1.25">1.25x</option>
+<option value="1.5">1.5x</option>
+<option value="2">2x</option>
+</select>
+
+<label>Crossfade (seconds)</label>
+<input type="range" min="0" max="10" value="0" id="crossfade">
+
+<h3>5-Band Equalizer</h3>
+<label>60Hz</label><input type="range" min="-30" max="30" value="0" oninput="eq[0].gain.value=this.value">
+<label>250Hz</label><input type="range" min="-30" max="30" value="0" oninput="eq[1].gain.value=this.value">
+<label>1kHz</label><input type="range" min="-30" max="30" value="0" oninput="eq[2].gain.value=this.value">
+<label>4kHz</label><input type="range" min="-30" max="30" value="0" oninput="eq[3].gain.value=this.value">
+<label>10kHz</label><input type="range" min="-30" max="30" value="0" oninput="eq[4].gain.value=this.value">
+</div>
+
+<div id="miniPlayer">
+<div id="nowTitle">No Track</div>
+<img id="coverImg" class="cover">
+<canvas id="visualizer"></canvas>
+<input type="range" id="seekBar" min="0" max="100">
+<div class="controls">
+<button onclick="prev()">Prev</button>
+<button onclick="togglePlay()">Play</button>
+<button onclick="next()">Next</button>
+<button onclick="toggleShuffle()">Shuffle</button>
+<button onclick="toggleRepeat()">Repeat</button>
+<input type="range" min="0" max="1" step="0.01" onchange="audio.volume=this.value">
+</div>
+
+<h3>Lyrics</h3>
+<textarea id="lyricsInput" placeholder="Paste lyrics"></textarea>
+<div class="lyrics" id="lyricsDisplay"></div>
+</div>
+
+<script>
+const audio=new Audio();
+let library=JSON.parse(localStorage.getItem("lib")||"[]");
+let queue=JSON.parse(localStorage.getItem("queue")||"[]");
+let playlists=JSON.parse(localStorage.getItem("playlists")||"{}");
+let currentIndex=0;
+let shuffle=false;
+let repeat="off";
+
+const ctx=new (window.AudioContext||window.webkitAudioContext)();
+const source=ctx.createMediaElementSource(audio);
+const analyser=ctx.createAnalyser();
+
+const eq=[];
+[60,250,1000,4000,10000].forEach(freq=>{
+let f=ctx.createBiquadFilter();
+f.type="peaking"; f.frequency.value=freq; f.Q.value=1;
+eq.push(f);
+});
+source.connect(eq[0]);
+for(let i=0;i<eq.length-1;i++)eq[i].connect(eq[i+1]);
+eq[4].connect(analyser);
+analyser.connect(ctx.destination);
+
+function save(){
+localStorage.setItem("lib",JSON.stringify(library));
+localStorage.setItem("queue",JSON.stringify(queue));
+localStorage.setItem("playlists",JSON.stringify(playlists));
+}
+
+function go(p){
+document.querySelectorAll(".page").forEach(x=>x.style.display="none");
+document.getElementById(p).style.display="block";
+}
+go("library");
+
+fileInput.onchange=e=>{
+[...e.target.files].forEach(file=>{
+library.push({name:file.name,url:URL.createObjectURL(file),cover:""});
+});
+save();renderLibrary();
+};
+
+function renderLibrary(){
+libraryList.innerHTML="";
+library.forEach((t,i)=>{
+let div=document.createElement("div");
+div.className="card";
+div.innerHTML=`${t.name}
+<button onclick="addToQueue(${i})">Queue</button>
+<input type="file" accept="image/*" onchange="addCover(event,${i})">`;
+libraryList.appendChild(div);
+});
+}
+renderLibrary();
+
+function addCover(e,i){
+let reader=new FileReader();
+reader.onload=()=>{library[i].cover=reader.result;save();}
+reader.readAsDataURL(e.target.files[0]);
+}
+
+function addToQueue(i){queue.push(library[i]);save();renderQueue();}
+
+function renderQueue(){
+queueList.innerHTML="";
+queue.forEach((t,i)=>{
+let div=document.createElement("div");
+div.className="queue-item";
+div.draggable=true;
+div.innerText=t.name;
+div.ondragstart=e=>e.dataTransfer.setData("text",i);
+div.ondrop=e=>{
+let from=e.dataTransfer.getData("text");
+let temp=queue[from];
+queue.splice(from,1);
+queue.splice(i,0,temp);
+save();renderQueue();
+};
+div.ondragover=e=>e.preventDefault();
+queueList.appendChild(div);
+});
+}
+renderQueue();
+
+function startPlaying(){
+if(!queue.length)return;
+audio.src=queue[currentIndex].url;
+audio.play();
+nowTitle.innerText=queue[currentIndex].name;
+coverImg.src=queue[currentIndex].cover||"";
+lyricsDisplay.innerText=lyricsInput.value;
+}
+
+function togglePlay(){ctx.resume();audio.paused?audio.play():audio.pause();}
+function next(){
+if(shuffle)currentIndex=Math.floor(Math.random()*queue.length);
+else currentIndex=(currentIndex+1)%queue.length;
+startPlaying();
+}
+function prev(){currentIndex=Math.max(0,currentIndex-1);startPlaying();}
+function toggleShuffle(){shuffle=!shuffle;}
+function toggleRepeat(){repeat=repeat==="off"?"all":repeat==="all"?"one":"off";}
+
+audio.onended=()=>{
+if(repeat==="one")startPlaying();
+else next();
+};
+
+seekBar.oninput=e=>audio.currentTime=(e.target.value/100)*audio.duration;
+audio.ontimeupdate=()=>seekBar.value=(audio.currentTime/audio.duration)*100||0;
+
+function createPlaylist(){
+let name=document.getElementById("playlistName").value;
+if(!name)return;
+playlists[name]=[...queue];
+save();renderPlaylists();
+}
+
+function renderPlaylists(){
+playlistContainer.innerHTML="";
+Object.keys(playlists).forEach(name=>{
+let div=document.createElement("div");
+div.className="card";
+div.innerHTML=`<h3>${name}</h3>
+<button onclick="loadPlaylist('${name}')">Load</button>`;
+playlistContainer.appendChild(div);
+});
+}
+renderPlaylists();
+
+function loadPlaylist(name){queue=[...playlists[name]];save();renderQueue();}
+
+function exportPlaylists(){
+let blob=new Blob([JSON.stringify(playlists)],{type:"application/json"});
+let a=document.createElement("a");
+a.href=URL.createObjectURL(blob);
+a.download="playlists.json";
+a.click();
+}
+
+function importPlaylists(e){
+let reader=new FileReader();
+reader.onload=()=>{playlists=JSON.parse(reader.result);save();renderPlaylists();}
+reader.readAsText(e.target.files[0]);
+}
+
+function visualize(){
+requestAnimationFrame(visualize);
+let canvas=document.getElementById("visualizer");
+let c=canvas.getContext("2d");
+canvas.width=canvas.offsetWidth;
+canvas.height=canvas.offsetHeight;
+let bufferLength=analyser.frequencyBinCount;
+let data=new Uint8Array(bufferLength);
+analyser.getByteFrequencyData(data);
+c.fillStyle="#000";c.fillRect(0,0,canvas.width,canvas.height);
+let barWidth=(canvas.width/bufferLength)*2.5;
+let x=0;
+for(let i=0;i<bufferLength;i++){
+let h=data[i]/2;
+c.fillStyle="rgb("+(h+100)+",50,50)";
+c.fillRect(x,canvas.height-h,barWidth,h);
+x+=barWidth+1;
+}
+}
+visualize();
+
+document.addEventListener("keydown",e=>{
+if(e.code==="Space"){e.preventDefault();togglePlay();}
+if(e.code==="ArrowRight")next();
+if(e.code==="ArrowLeft")prev();
+});
+</script>
+
 </body>
 </html>
