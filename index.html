@@ -3,274 +3,227 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Extreme MP3 Platform</title>
+<title>PlayBar</title>
+
+<script src="https://cdn.jsdelivr.net/npm/jsmediatags@3.9.5/dist/jsmediatags.min.js"></script>
 
 <style>
-:root{
---bg:#0f0f0f;
---panel:#1b1b1b;
---accent:#ff3c3c;
---text:#fff;
-}
-*{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
-body{background:var(--bg);color:var(--text)}
-nav{display:flex;gap:10px;padding:15px;background:var(--panel);position:fixed;width:100%;z-index:1000}
-nav button{background:#222;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer}
-.page{display:none;padding:90px 20px 180px}
-.card{background:var(--panel);padding:12px;margin-bottom:10px;border-radius:10px}
-button{background:var(--accent);border:none;color:#fff;padding:6px 10px;border-radius:6px;cursor:pointer}
-input,select,textarea{padding:6px;margin:5px 0;border-radius:6px;border:none;width:100%}
-#miniPlayer{position:fixed;bottom:0;width:100%;background:#111;padding:15px;display:flex;flex-direction:column;gap:8px}
-.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-#visualizer{width:100%;height:80px;background:#000;border-radius:8px}
-.queue-item{background:#222;padding:6px;margin:4px 0;border-radius:6px;cursor:grab}
-.cover{width:70px;height:70px;object-fit:cover;border-radius:8px}
-.lyrics{max-height:150px;overflow-y:auto;background:#000;padding:10px;border-radius:8px;font-size:14px}
+body{margin:0;font-family:Arial;background:#111;color:white;}
+header{background:#1e1e1e;padding:15px;display:flex;align-items:center;}
+.menu-btn{font-size:22px;cursor:pointer;}
+.dropdown{position:absolute;top:60px;left:10px;background:#222;padding:10px;display:none;border-radius:10px;width:240px;}
+.dropdown div{padding:12px;cursor:pointer;border-bottom:1px solid #333;}
+.section{display:none;padding:20px;}
+.active{display:block;}
+.song-item{padding:10px;border-bottom:1px solid #333;cursor:pointer;}
+.vinyl{width:230px;height:230px;border-radius:50%;margin:20px auto;animation:spin 6s linear infinite;background-size:cover;background-position:center;background-color:black;}
+@keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+.controls{text-align:center;margin-top:15px;}
+.controls button{padding:15px;margin:10px;border-radius:50%;border:none;font-size:20px;cursor:pointer;}
+.progress{width:90%;margin:10px auto;}
+.meta{text-align:center;margin-top:10px;}
+.plus-btn{width:60px;height:60px;font-size:26px;border-radius:50%;margin-top:20px;}
+select,input[type=text]{padding:8px;margin:5px 0;width:100%;}
 </style>
 </head>
+
 <body>
 
-<nav>
-<button onclick="go('library')">Library</button>
-<button onclick="go('queue')">Queue</button>
-<button onclick="go('playlists')">Playlists</button>
-<button onclick="go('settings')">Settings</button>
-</nav>
+<header>
+  <div class="menu-btn" onclick="toggleMenu()">☰</div>
+  <h3 style="margin-left:15px;">PlayBar</h3>
+</header>
 
-<div id="library" class="page">
-<h2>Library</h2>
-<input type="file" multiple accept=".mp3" id="fileInput">
-<div id="libraryList"></div>
+<div class="dropdown" id="menu">
+  <div onclick="showSection('files')">1. Files & Folders</div>
+  <div onclick="showSection('songs')">2. Songs</div>
+  <div onclick="showSection('playlists')">3. Playlists</div>
+  <div onclick="showSection('playbar')">4. PlayBar</div>
+  <div onclick="showSection('settings')">5. Settings</div>
 </div>
 
-<div id="queue" class="page">
-<h2>Queue</h2>
-<div id="queueList"></div>
+<!-- FILES -->
+<div class="section" id="files">
+  <h2>Upload Files</h2>
+  <input type="file" multiple accept="audio/*" onchange="loadFiles(event)">
+  <h2>Upload Folder</h2>
+  <input type="file" webkitdirectory directory multiple onchange="loadFiles(event)">
 </div>
 
-<div id="playlists" class="page">
-<h2>Playlists</h2>
-<input id="playlistName" placeholder="Playlist name">
-<button onclick="createPlaylist()">Create</button>
-<button onclick="exportPlaylists()">Export</button>
-<input type="file" onchange="importPlaylists(event)">
-<div id="playlistContainer"></div>
+<!-- SONGS -->
+<div class="section" id="songs">
+  <h2>All Songs</h2>
+  <select onchange="sortSongs(this.value)">
+    <option value="title">Sort by Title</option>
+    <option value="artist">Sort by Artist</option>
+    <option value="album">Sort by Album</option>
+    <option value="genre">Sort by Genre</option>
+  </select>
+  <div id="songList"></div>
 </div>
 
-<div id="settings" class="page">
-<h2>Audio Settings</h2>
-
-<label>Playback Speed</label>
-<select onchange="audio.playbackRate=this.value">
-<option value="1">1x</option>
-<option value="1.25">1.25x</option>
-<option value="1.5">1.5x</option>
-<option value="2">2x</option>
-</select>
-
-<label>Crossfade (seconds)</label>
-<input type="range" min="0" max="10" value="0" id="crossfade">
-
-<h3>5-Band Equalizer</h3>
-<label>60Hz</label><input type="range" min="-30" max="30" value="0" oninput="eq[0].gain.value=this.value">
-<label>250Hz</label><input type="range" min="-30" max="30" value="0" oninput="eq[1].gain.value=this.value">
-<label>1kHz</label><input type="range" min="-30" max="30" value="0" oninput="eq[2].gain.value=this.value">
-<label>4kHz</label><input type="range" min="-30" max="30" value="0" oninput="eq[3].gain.value=this.value">
-<label>10kHz</label><input type="range" min="-30" max="30" value="0" oninput="eq[4].gain.value=this.value">
+<!-- PLAYLISTS -->
+<div class="section" id="playlists">
+  <h2>Playlists</h2>
+  <div id="playlistList"></div>
+  <button class="plus-btn" onclick="openPlaylistCreator()">+</button>
 </div>
 
-<div id="miniPlayer">
-<div id="nowTitle">No Track</div>
-<img id="coverImg" class="cover">
-<canvas id="visualizer"></canvas>
-<input type="range" id="seekBar" min="0" max="100">
-<div class="controls">
-<button onclick="prev()">Prev</button>
-<button onclick="togglePlay()">Play</button>
-<button onclick="next()">Next</button>
-<button onclick="toggleShuffle()">Shuffle</button>
-<button onclick="toggleRepeat()">Repeat</button>
-<input type="range" min="0" max="1" step="0.01" onchange="audio.volume=this.value">
+<!-- PLAYBAR -->
+<div class="section active" id="playbar">
+  <div class="vinyl" id="vinyl"></div>
+  <div class="meta">
+    <h3 id="title">No Song</h3>
+    <p id="artist"></p>
+    <p id="album"></p>
+  </div>
+  <audio id="audio" ontimeupdate="updateProgress()"></audio>
+  <input type="range" id="progress" class="progress" min="0" max="100" value="0" onchange="seekSong()">
+  <div class="controls">
+    <button onclick="prevSong()">⏮</button>
+    <button onclick="togglePlay()">⏯</button>
+    <button onclick="nextSong()">⏭</button>
+  </div>
 </div>
 
-<h3>Lyrics</h3>
-<textarea id="lyricsInput" placeholder="Paste lyrics"></textarea>
-<div class="lyrics" id="lyricsDisplay"></div>
+<!-- SETTINGS -->
+<div class="section" id="settings">
+  <h2>Theme</h2>
+  <button onclick="setTheme('dark')">Dark</button>
+  <button onclick="setTheme('light')">Light</button>
+  <button onclick="setTheme('peach')">Peach</button>
+  <button onclick="setTheme('fruit')">Fruitier Ergo</button>
+
+  <h2>Data</h2>
+  <button onclick="saveData()">Save</button>
+  <button onclick="loadData()">Load</button>
+
+  <h3>Info</h3>
+  <p>Email: wenithqp@gmail.com</p>
+  <p>Version: 0.0.1</p>
 </div>
 
 <script>
-const audio=new Audio();
-let library=JSON.parse(localStorage.getItem("lib")||"[]");
-let queue=JSON.parse(localStorage.getItem("queue")||"[]");
-let playlists=JSON.parse(localStorage.getItem("playlists")||"{}");
+let songs=[];
+let playlists=[];
 let currentIndex=0;
-let shuffle=false;
-let repeat="off";
 
-const ctx=new (window.AudioContext||window.webkitAudioContext)();
-const source=ctx.createMediaElementSource(audio);
-const analyser=ctx.createAnalyser();
-
-const eq=[];
-[60,250,1000,4000,10000].forEach(freq=>{
-let f=ctx.createBiquadFilter();
-f.type="peaking"; f.frequency.value=freq; f.Q.value=1;
-eq.push(f);
-});
-source.connect(eq[0]);
-for(let i=0;i<eq.length-1;i++)eq[i].connect(eq[i+1]);
-eq[4].connect(analyser);
-analyser.connect(ctx.destination);
-
-function save(){
-localStorage.setItem("lib",JSON.stringify(library));
-localStorage.setItem("queue",JSON.stringify(queue));
-localStorage.setItem("playlists",JSON.stringify(playlists));
+window.onload=function(){
+  playlists.push({name:"Yeah Bro this All yo Music get a life",songs:[]});
+  renderPlaylists();
 }
 
-function go(p){
-document.querySelectorAll(".page").forEach(x=>x.style.display="none");
-document.getElementById(p).style.display="block";
-}
-go("library");
+function toggleMenu(){let m=document.getElementById("menu");m.style.display=m.style.display==="block"?"none":"block";}
+function showSection(id){document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));document.getElementById(id).classList.add("active");toggleMenu();}
 
-fileInput.onchange=e=>{
-[...e.target.files].forEach(file=>{
-library.push({name:file.name,url:URL.createObjectURL(file),cover:""});
-});
-save();renderLibrary();
-};
-
-function renderLibrary(){
-libraryList.innerHTML="";
-library.forEach((t,i)=>{
-let div=document.createElement("div");
-div.className="card";
-div.innerHTML=`${t.name}
-<button onclick="addToQueue(${i})">Queue</button>
-<input type="file" accept="image/*" onchange="addCover(event,${i})">`;
-libraryList.appendChild(div);
-});
-}
-renderLibrary();
-
-function addCover(e,i){
-let reader=new FileReader();
-reader.onload=()=>{library[i].cover=reader.result;save();}
-reader.readAsDataURL(e.target.files[0]);
-}
-
-function addToQueue(i){queue.push(library[i]);save();renderQueue();}
-
-function renderQueue(){
-queueList.innerHTML="";
-queue.forEach((t,i)=>{
-let div=document.createElement("div");
-div.className="queue-item";
-div.draggable=true;
-div.innerText=t.name;
-div.ondragstart=e=>e.dataTransfer.setData("text",i);
-div.ondrop=e=>{
-let from=e.dataTransfer.getData("text");
-let temp=queue[from];
-queue.splice(from,1);
-queue.splice(i,0,temp);
-save();renderQueue();
-};
-div.ondragover=e=>e.preventDefault();
-queueList.appendChild(div);
-});
-}
-renderQueue();
-
-function startPlaying(){
-if(!queue.length)return;
-audio.src=queue[currentIndex].url;
-audio.play();
-nowTitle.innerText=queue[currentIndex].name;
-coverImg.src=queue[currentIndex].cover||"";
-lyricsDisplay.innerText=lyricsInput.value;
+function loadFiles(event){
+  for(let file of event.target.files){
+    if(file.type.startsWith("audio/")){
+      jsmediatags.read(file,{
+        onSuccess:tag=>{
+          let pic=null;
+          if(tag.tags.picture){
+            let data=tag.tags.picture.data;
+            let format=tag.tags.picture.format;
+            let base64="";
+            for(let i=0;i<data.length;i++){base64+=String.fromCharCode(data[i]);}
+            pic="data:"+format+";base64,"+btoa(base64);
+          }
+          let song={
+            title:tag.tags.title||file.name,
+            artist:tag.tags.artist||"Unknown Artist",
+            album:tag.tags.album||"Unknown Album",
+            genre:tag.tags.genre||"Unknown",
+            url:URL.createObjectURL(file),
+            cover:pic
+          };
+          songs.push(song);
+          playlists[0].songs.push(song);
+          renderSongs();
+        }
+      });
+    }
+  }
 }
 
-function togglePlay(){ctx.resume();audio.paused?audio.play():audio.pause();}
-function next(){
-if(shuffle)currentIndex=Math.floor(Math.random()*queue.length);
-else currentIndex=(currentIndex+1)%queue.length;
-startPlaying();
+function renderSongs(){
+  let list=document.getElementById("songList");
+  list.innerHTML="";
+  songs.forEach((s,i)=>{
+    let div=document.createElement("div");
+    div.className="song-item";
+    div.innerHTML="<strong>"+s.title+"</strong><br>"+s.artist+" • "+s.album+" • "+s.genre;
+    div.onclick=()=>playSong(i);
+    list.appendChild(div);
+  });
 }
-function prev(){currentIndex=Math.max(0,currentIndex-1);startPlaying();}
-function toggleShuffle(){shuffle=!shuffle;}
-function toggleRepeat(){repeat=repeat==="off"?"all":repeat==="all"?"one":"off";}
 
-audio.onended=()=>{
-if(repeat==="one")startPlaying();
-else next();
-};
-
-seekBar.oninput=e=>audio.currentTime=(e.target.value/100)*audio.duration;
-audio.ontimeupdate=()=>seekBar.value=(audio.currentTime/audio.duration)*100||0;
-
-function createPlaylist(){
-let name=document.getElementById("playlistName").value;
-if(!name)return;
-playlists[name]=[...queue];
-save();renderPlaylists();
+function sortSongs(type){
+  songs.sort((a,b)=>a[type].localeCompare(b[type]));
+  renderSongs();
 }
 
 function renderPlaylists(){
-playlistContainer.innerHTML="";
-Object.keys(playlists).forEach(name=>{
-let div=document.createElement("div");
-div.className="card";
-div.innerHTML=`<h3>${name}</h3>
-<button onclick="loadPlaylist('${name}')">Load</button>`;
-playlistContainer.appendChild(div);
-});
-}
-renderPlaylists();
-
-function loadPlaylist(name){queue=[...playlists[name]];save();renderQueue();}
-
-function exportPlaylists(){
-let blob=new Blob([JSON.stringify(playlists)],{type:"application/json"});
-let a=document.createElement("a");
-a.href=URL.createObjectURL(blob);
-a.download="playlists.json";
-a.click();
+  let list=document.getElementById("playlistList");
+  list.innerHTML="";
+  playlists.forEach(pl=>{
+    let div=document.createElement("div");
+    div.className="song-item";
+    div.innerText=pl.name+" ("+pl.songs.length+")";
+    list.appendChild(div);
+  });
 }
 
-function importPlaylists(e){
-let reader=new FileReader();
-reader.onload=()=>{playlists=JSON.parse(reader.result);save();renderPlaylists();}
-reader.readAsText(e.target.files[0]);
+function openPlaylistCreator(){
+  let name=prompt("Playlist name:");
+  if(!name)return;
+
+  let mode=confirm("Press OK for Auto AI Playlist. Cancel for Manual.");
+
+  if(mode){ // AI Mode
+    let vibe=prompt("Enter genre or artist vibe:");
+    let newList=songs.filter(s=>s.genre.toLowerCase().includes(vibe.toLowerCase())||s.artist.toLowerCase().includes(vibe.toLowerCase()));
+    playlists.push({name:name,songs:newList});
+  }else{ // Manual
+    let selected=[];
+    songs.forEach((s,i)=>{
+      if(confirm("Add "+s.title+" ?")) selected.push(s);
+    });
+    playlists.push({name:name,songs:selected});
+  }
+
+  renderPlaylists();
 }
 
-function visualize(){
-requestAnimationFrame(visualize);
-let canvas=document.getElementById("visualizer");
-let c=canvas.getContext("2d");
-canvas.width=canvas.offsetWidth;
-canvas.height=canvas.offsetHeight;
-let bufferLength=analyser.frequencyBinCount;
-let data=new Uint8Array(bufferLength);
-analyser.getByteFrequencyData(data);
-c.fillStyle="#000";c.fillRect(0,0,canvas.width,canvas.height);
-let barWidth=(canvas.width/bufferLength)*2.5;
-let x=0;
-for(let i=0;i<bufferLength;i++){
-let h=data[i]/2;
-c.fillStyle="rgb("+(h+100)+",50,50)";
-c.fillRect(x,canvas.height-h,barWidth,h);
-x+=barWidth+1;
+function playSong(i){
+  currentIndex=i;
+  let audio=document.getElementById("audio");
+  let vinyl=document.getElementById("vinyl");
+  let s=songs[i];
+  audio.src=s.url;
+  audio.play();
+  document.getElementById("title").innerText=s.title;
+  document.getElementById("artist").innerText=s.artist;
+  document.getElementById("album").innerText=s.album;
+  vinyl.style.backgroundImage=s.cover?"url('"+s.cover+"')":"none";
+  showSection("playbar");
 }
-}
-visualize();
 
-document.addEventListener("keydown",e=>{
-if(e.code==="Space"){e.preventDefault();togglePlay();}
-if(e.code==="ArrowRight")next();
-if(e.code==="ArrowLeft")prev();
-});
+function togglePlay(){let a=document.getElementById("audio");a.paused?a.play():a.pause();}
+function nextSong(){if(currentIndex<songs.length-1)playSong(currentIndex+1);}
+function prevSong(){if(currentIndex>0)playSong(currentIndex-1);}
+function updateProgress(){let a=document.getElementById("audio");if(a.duration)document.getElementById("progress").value=(a.currentTime/a.duration)*100;}
+function seekSong(){let a=document.getElementById("audio");let p=document.getElementById("progress");a.currentTime=(p.value/100)*a.duration;}
+
+function setTheme(t){
+  if(t==="dark"){document.body.style.background="#111";document.body.style.color="white";}
+  if(t==="light"){document.body.style.background="#eee";document.body.style.color="black";}
+  if(t==="peach"){document.body.style.background="#ffccaa";document.body.style.color="black";}
+  if(t==="fruit"){document.body.style.background="#331133";document.body.style.color="white";}
+}
+
+function saveData(){localStorage.setItem("songs",JSON.stringify(songs));localStorage.setItem("playlists",JSON.stringify(playlists));alert("Saved!");}
+function loadData(){let s=localStorage.getItem("songs");let p=localStorage.getItem("playlists");if(s)songs=JSON.parse(s);if(p)playlists=JSON.parse(p);renderSongs();renderPlaylists();}
 </script>
 
 </body>
