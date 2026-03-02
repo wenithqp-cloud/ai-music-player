@@ -3,25 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Extreme MP3 Player</title>
-
-<!-- JSMediaTags for reading metadata -->
+<title>Extreme MP3 Player Advanced</title>
 <script src="https://cdn.jsdelivr.net/npm/jsmediatags@3.9.5/dist/jsmediatags.min.js"></script>
 
 <style>
-/* ================== ROOT VARIABLES ================== */
 :root {
-  --bg:#121212; --panel:#181818; --panel2:#202020;
-  --accent:#1db954; --text:#ffffff; --highlight:#1db954;
+  --bg:#121212; --panel:#181818; --panel2:#202020; --accent:#1db954; --text:#ffffff; --highlight:#1db954;
 }
 body{background:var(--bg);color:var(--text);font-family:system-ui,Arial;margin:0;padding:0;height:100vh;display:flex;flex-direction:column;transition:.3s;overflow:hidden;}
 header{background:var(--panel);padding:12px;display:flex;align-items:center;justify-content:space-between;}
 #search{width:65%;padding:12px;font-size:16px;border-radius:10px;border:none;background:var(--panel2);color:var(--text);}
 #settingsBtn{background:var(--panel2);border:none;padding:8px 14px;border-radius:8px;color:var(--text);cursor:pointer;}
-#settingsMenu{position:absolute;top:60px;right:20px;background:var(--panel);padding:15px;border-radius:12px;display:none;flex-direction:column;gap:10px;width:260px;box-shadow:0 0 20px rgba(0,0,0,.6);z-index:1000;}
+#settingsMenu{position:absolute;top:60px;right:20px;background:var(--panel);padding:15px;border-radius:12px;display:none;flex-direction:column;gap:10px;width:280px;box-shadow:0 0 20px rgba(0,0,0,.6);z-index:1000;}
 #settingsMenu select,#settingsMenu input{background:var(--panel2);color:var(--text);border:none;padding:6px;border-radius:6px;width:100%;}
 
-/* ================== MAIN LAYOUT ================== */
 #main{flex:1;display:flex;overflow:hidden;transition:.3s;}
 #sidebar{width:220px;background:var(--panel);padding:10px;display:flex;flex-direction:column;gap:10px;transition:.3s;}
 #content{flex:1;padding:15px;overflow-y:auto;transition:.3s;}
@@ -34,8 +29,8 @@ header{background:var(--panel);padding:12px;display:flex;align-items:center;just
 button{background:var(--panel2);color:var(--text);border:none;padding:6px 10px;border-radius:6px;cursor:pointer;}
 button:hover{background:var(--accent);}
 #visualizer{width:100%;height:80px;background:#000;border-radius:6px;}
-
-/* ================== LAYOUT VARIANTS ================== */
+#eq{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;margin-top:8px;}
+#eq input{transform:rotate(-90deg);width:100px;}
 .layout-grid #content{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;}
 .layout-grid .song{flex-direction:column;text-align:center;background:var(--panel2);}
 .layout-minimal #sidebar{display:none;}
@@ -48,13 +43,11 @@ button:hover{background:var(--accent);}
 </head>
 <body>
 
-<!-- ================== HEADER ================== -->
 <header>
 <input type="text" id="search" placeholder="Search your music...">
 <button id="settingsBtn">⚙</button>
 </header>
 
-<!-- ================== SETTINGS MENU ================== -->
 <div id="settingsMenu">
 <label>Upload Music</label>
 <input type="file" id="folderInput" webkitdirectory multiple>
@@ -70,10 +63,18 @@ button:hover{background:var(--accent);}
 <option value="layout-topbar">Topbar</option>
 </select>
 
+<label>Equalizer Presets</label>
+<select id="eqPreset">
+<option value="flat">Flat</option>
+<option value="pop">Pop</option>
+<option value="rock">Rock</option>
+<option value="jazz">Jazz</option>
+<option value="classical">Classical</option>
+</select>
+
 <button onclick="toggleMini()">Toggle Mini Player</button>
 </div>
 
-<!-- ================== MAIN CONTENT ================== -->
 <div id="main">
 <div id="sidebar">
 <button onclick="showLibrary()">Library</button>
@@ -84,7 +85,6 @@ button:hover{background:var(--accent);}
 <div id="content"></div>
 </div>
 
-<!-- ================== PLAYER ================== -->
 <div id="player">
 <div id="nowPlaying">No song playing</div>
 <canvas id="visualizer"></canvas>
@@ -97,6 +97,7 @@ button:hover{background:var(--accent);}
 <button onclick="toggleRepeat()">🔁</button>
 <input type="range" id="volume" min="0" max="1" step="0.01" value="1">
 </div>
+<div id="eq"></div>
 </div>
 
 <audio id="audio"></audio>
@@ -104,12 +105,12 @@ button:hover{background:var(--accent);}
 <script>
 /* ================== DATA ================== */
 let songs=[], queue=[], currentIndex=0, shuffle=false, repeat=false;
-let audioCtx, analyser, source;
+let audioCtx, analyser, source, gainNode, eqNodes=[];
 const audio=document.getElementById("audio");
 const content=document.getElementById("content");
 const nowPlaying=document.getElementById("nowPlaying");
 
-/* ================== SETTINGS MENU ================== */
+/* ================== SETTINGS ================== */
 const settingsBtn=document.getElementById("settingsBtn");
 const settingsMenu=document.getElementById("settingsMenu");
 settingsBtn.onclick=()=>settingsMenu.style.display=settingsMenu.style.display==="flex"?"none":"flex";
@@ -129,26 +130,17 @@ const themes=[
 ];
 const themeSelect=document.getElementById("themeSelect");
 themes.forEach((t,i)=>{let o=document.createElement("option");o.value=i;o.textContent=t.name;themeSelect.appendChild(o)});
-function applyTheme(i){
-let t=themes[i];
-document.documentElement.style.setProperty('--bg',t.bg);
-document.documentElement.style.setProperty('--accent',t.accent);
-localStorage.setItem('theme',i);
-}
+function applyTheme(i){let t=themes[i];document.documentElement.style.setProperty('--bg',t.bg);document.documentElement.style.setProperty('--accent',t.accent);localStorage.setItem('theme',i);}
 themeSelect.onchange=e=>applyTheme(e.target.value);
 
 /* ================== LAYOUT ================== */
 const layoutSelect=document.getElementById("layoutSelect");
-layoutSelect.onchange=e=>{
-document.body.className="";
-if(e.target.value!="default")document.body.classList.add(e.target.value);
-localStorage.setItem('layout',e.target.value);
-};
+layoutSelect.onchange=e=>{document.body.className="";if(e.target.value!="default")document.body.classList.add(e.target.value);localStorage.setItem('layout',e.target.value);};
 
 /* ================== MINI PLAYER ================== */
 function toggleMini(){document.body.classList.toggle('mini')}
 
-/* ================== RESTORE SETTINGS ================== */
+/* ================== RESTORE ================== */
 window.onload=()=>{
 let t=localStorage.getItem('theme');if(t){themeSelect.value=t;applyTheme(t);}
 let l=localStorage.getItem('layout');if(l){layoutSelect.value=l;if(l!="default")document.body.classList.add(l);}
@@ -162,75 +154,56 @@ queue=[...songs];showLibrary();
 });
 
 /* ================== LIBRARY & QUEUE ================== */
-function showLibrary(){content.innerHTML='';songs.forEach((s,i)=>{
-let d=document.createElement('div');
-d.className='song'; d.textContent=s.name;
-d.onclick=()=>addToQueue(i);
-content.appendChild(d);
-})}
+function showLibrary(){content.innerHTML='';songs.forEach((s,i)=>{let d=document.createElement('div');d.className='song';d.textContent=s.name;d.onclick=()=>addToQueue(i);content.appendChild(d);})}
 function addToQueue(i){queue.push(songs[i]);showQueue();}
-function showQueue(){content.innerHTML='';queue.forEach((s,i)=>{
-let d=document.createElement('div');
-d.className='song'+(i===currentIndex?' active':'');
-d.draggable=true; d.innerHTML=`${i+1}. ${s.name}`;
-d.ondragstart=e=>e.dataTransfer.setData('text/plain',i);
-d.ondragover=e=>e.preventDefault();
-d.ondrop=e=>{
-let from=e.dataTransfer.getData('text');
-let temp=queue[from];
-queue.splice(from,1);
-queue.splice(i,0,temp);
-showQueue();
-};
-d.onclick=()=>playSong(i);
-content.appendChild(d);
-})}
-function shuffleQueue(){queue.sort(()=>Math.random()-0.5);showQueue()}
-function clearQueue(){queue=[];audio.pause();nowPlaying.textContent='Queue Cleared';showQueue()}
+function showQueue(){content.innerHTML='';queue.forEach((s,i)=>{let d=document.createElement('div');d.className='song'+(i===currentIndex?' active':'');d.draggable=true; d.innerHTML=`${i+1}. ${s.name}`;d.ondragstart=e=>e.dataTransfer.setData('text/plain',i);d.ondragover=e=>e.preventDefault();d.ondrop=e=>{let from=e.dataTransfer.getData('text');let temp=queue[from];queue.splice(from,1);queue.splice(i,0,temp);showQueue();};d.onclick=()=>playSong(i);content.appendChild(d);})}
+function shuffleQueue(){queue.sort(()=>Math.random()-0.5);showQueue();}
+function clearQueue(){queue=[];audio.pause();nowPlaying.textContent='Queue Cleared';showQueue();}
 
 /* ================== PLAYBACK ================== */
 function playSong(i){if(!queue[i])return;currentIndex=i;audio.src=queue[i].url;audio.play();nowPlaying.textContent=queue[i].name;showQueue();initVisualizer();}
-function togglePlay(){audio.paused?audio.play():audio.pause()}
-function nextSong(){if(queue.length==0)return;if(shuffle)currentIndex=Math.floor(Math.random()*queue.length);else currentIndex=(currentIndex+1)%queue.length;playSong(currentIndex)}
-function prevSong(){if(queue.length==0)return;currentIndex=(currentIndex-1+queue.length)%queue.length;playSong(currentIndex)}
-function toggleShuffle(){shuffle=!shuffle}
-function toggleRepeat(){repeat=!repeat}
+function togglePlay(){audio.paused?audio.play():audio.pause();}
+function nextSong(){if(queue.length==0)return;if(shuffle)currentIndex=Math.floor(Math.random()*queue.length);else currentIndex=(currentIndex+1)%queue.length;playSong(currentIndex);}
+function prevSong(){if(queue.length==0)return;currentIndex=(currentIndex-1+queue.length)%queue.length;playSong(currentIndex);}
+function toggleShuffle(){shuffle=!shuffle;}
+function toggleRepeat(){repeat=!repeat;}
 audio.onended=()=>{repeat?playSong(currentIndex):nextSong()};
 
 /* ================== PROGRESS ================== */
-audio.addEventListener('timeupdate',()=>{document.getElementById('progress').value=(audio.currentTime/audio.duration)*100||0});
+audio.addEventListener('timeupdate',()=>{document.getElementById('progress').value=(audio.currentTime/audio.duration)*100||0;});
 document.getElementById('progress').oninput=e=>audio.currentTime=(e.target.value/100)*audio.duration;
 document.getElementById('volume').oninput=e=>audio.volume=e.target.value;
 
 /* ================== SEARCH ================== */
-document.getElementById('search').oninput=e=>{
-let q=e.target.value.toLowerCase();
-content.innerHTML='';
-queue.filter(s=>s.name.toLowerCase().includes(q)).forEach((s,i)=>{
-let d=document.createElement('div');d.className='song';d.textContent=s.name;d.onclick=()=>playSong(i);content.appendChild(d);
-})
-}
+document.getElementById('search').oninput=e=>{let q=e.target.value.toLowerCase();content.innerHTML='';queue.filter(s=>s.name.toLowerCase().includes(q)).forEach((s,i)=>{let d=document.createElement('div');d.className='song';d.textContent=s.name;d.onclick=()=>playSong(i);content.appendChild(d);})}
 
-/* ================== VISUALIZER ================== */
+/* ================== VISUALIZER & EQ ================== */
 function initVisualizer(){
-if(!audioCtx){audioCtx=new(window.AudioContext||window.webkitAudioContext)();source=audioCtx.createMediaElementSource(audio);analyser=audioCtx.createAnalyser();source.connect(analyser);analyser.connect(audioCtx.destination)}
-let canvas=document.getElementById('visualizer');let ctx=canvas.getContext('2d');analyser.fftSize=64;let buffer=new Uint8Array(analyser.frequencyBinCount);
-function draw(){requestAnimationFrame(draw);analyser.getByteFrequencyData(buffer);ctx.fillStyle='#000';ctx.fillRect(0,0,canvas.width,canvas.height);let barWidth=canvas.width/buffer.length;for(let i=0;i<buffer.length;i++){let h=buffer[i]/2;ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--accent');ctx.fillRect(i*barWidth,canvas.height-h,barWidth-2,h)}}draw()
+if(!audioCtx){audioCtx=new(window.AudioContext||window.webkitAudioContext)();source=audioCtx.createMediaElementSource(audio);gainNode=audioCtx.createGain();source.connect(gainNode);gainNode.connect(audioCtx.destination);analyser=audioCtx.createAnalyser();gainNode.connect(analyser);}
+let canvas=document.getElementById('visualizer');let ctx=canvas.getContext('2d');analyser.fftSize=128;let buffer=new Uint8Array(analyser.frequencyBinCount);
+
+/* ===== 10-band EQ ===== */
+const eqFrequencies=[60,170,310,600,1000,3000,6000,12000,14000,16000];
+const eqDiv=document.getElementById('eq');eqDiv.innerHTML='';eqNodes=[];
+eqFrequencies.forEach((f,i)=>{
+let eq=document.createElement('input');eq.type='range';eq.min=-15;eq.max=15;eq.value=0;eq.dataset.index=i;eqNodes.push(audioCtx.createBiquadFilter());
+eqNodes[i].type='peaking';eqNodes[i].frequency.value=f;eqNodes[i].Q.value=1;eqNodes[i].gain.value=0;eqDiv.appendChild(eq);
+eq.oninput=()=>{eqNodes[i].gain.value=eq.value;connectEQ();}
+});
+function connectEQ(){let node=source;eqNodes.forEach(n=>{node.connect(n);node=n});node.connect(gainNode);gainNode.connect(audioCtx.destination);}
+connectEQ();
+
+/* ===== DRAW ===== */
+function draw(){requestAnimationFrame(draw);analyser.getByteFrequencyData(buffer);ctx.fillStyle='#000';ctx.fillRect(0,0,canvas.width,canvas.height);let barWidth=canvas.width/buffer.length;for(let i=0;i<buffer.length;i++){let h=buffer[i]/2;ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--accent');ctx.fillRect(i*barWidth,canvas.height-h,barWidth-2,h);}}draw()
 }
 
-/* ================== SWIPE FOR MOBILE ================== */
-let touchStartX=0;
-document.addEventListener('touchstart',e=>touchStartX=e.changedTouches[0].screenX);
+/* ================== SWIPE ================== */
+let touchStartX=0;document.addEventListener('touchstart',e=>touchStartX=e.changedTouches[0].screenX);
 document.addEventListener('touchend',e=>{let diff=e.changedTouches[0].screenX-touchStartX;if(diff>80)prevSong();if(diff<-80)nextSong()});
 
-/* ================== MEDIA SESSION API ================== */
-if('mediaSession' in navigator){
-navigator.mediaSession.setActionHandler('play',()=>togglePlay());
-navigator.mediaSession.setActionHandler('pause',()=>togglePlay());
-navigator.mediaSession.setActionHandler('previoustrack',()=>prevSong());
-navigator.mediaSession.setActionHandler('nexttrack',()=>nextSong());
-}
-</script>
+/* ================== MEDIA SESSION ================== */
+if('mediaSession' in navigator){navigator.mediaSession.setActionHandler('play',()=>togglePlay());navigator.mediaSession.setActionHandler('pause',()=>togglePlay());navigator.mediaSession.setActionHandler('previoustrack',()=>prevSong());navigator.mediaSession.setActionHandler('nexttrack',()=>nextSong());}
 
+</script>
 </body>
 </html>
