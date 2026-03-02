@@ -3,9 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Extreme MP3 Player Advanced</title>
+<title>Extreme MP3 Player Ultimate</title>
 <script src="https://cdn.jsdelivr.net/npm/jsmediatags@3.9.5/dist/jsmediatags.min.js"></script>
-
 <style>
 :root {
   --bg:#121212; --panel:#181818; --panel2:#202020; --accent:#1db954; --text:#ffffff; --highlight:#1db954;
@@ -24,13 +23,16 @@ header{background:var(--panel);padding:12px;display:flex;align-items:center;just
 .song:hover{background:var(--panel2);}
 .song.active{background:var(--accent);}
 #player{background:var(--panel);padding:10px;display:flex;flex-direction:column;gap:6px;}
-#controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
-#progress{width:100%;}
-button{background:var(--panel2);color:var(--text);border:none;padding:6px 10px;border-radius:6px;cursor:pointer;}
-button:hover{background:var(--accent);}
-#visualizer{width:100%;height:80px;background:#000;border-radius:6px;}
+#nowPlaying{display:flex;align-items:center;gap:10px;}
+#albumArt{width:60px;height:60px;border-radius:8px;background:#333;}
+#lyrics{margin-top:5px;font-size:14px;color:#aaa;height:50px;overflow:hidden;}
+#visualizer{width:100%;height:100px;background:#000;border-radius:6px;}
 #eq{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;margin-top:8px;}
 #eq input{transform:rotate(-90deg);width:100px;}
+#controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px;}
+#progress{width:100%;margin-top:6px;}
+button{background:var(--panel2);color:var(--text);border:none;padding:6px 10px;border-radius:6px;cursor:pointer;}
+button:hover{background:var(--accent);}
 .layout-grid #content{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;}
 .layout-grid .song{flex-direction:column;text-align:center;background:var(--panel2);}
 .layout-minimal #sidebar{display:none;}
@@ -61,6 +63,7 @@ button:hover{background:var(--accent);}
 <option value="layout-grid">Grid</option>
 <option value="layout-minimal">Minimal</option>
 <option value="layout-topbar">Topbar</option>
+<option value="DJ">DJ Mode</option>
 </select>
 
 <label>Equalizer Presets</label>
@@ -86,7 +89,13 @@ button:hover{background:var(--accent);}
 </div>
 
 <div id="player">
-<div id="nowPlaying">No song playing</div>
+<div id="nowPlaying">
+<div id="albumArt"></div>
+<div id="trackInfo">
+<div id="trackName">No song playing</div>
+<div id="lyrics">Lyrics placeholder</div>
+</div>
+</div>
 <canvas id="visualizer"></canvas>
 <input type="range" id="progress" min="0" max="100" value="0">
 <div id="controls">
@@ -108,7 +117,9 @@ let songs=[], queue=[], currentIndex=0, shuffle=false, repeat=false;
 let audioCtx, analyser, source, gainNode, eqNodes=[];
 const audio=document.getElementById("audio");
 const content=document.getElementById("content");
-const nowPlaying=document.getElementById("nowPlaying");
+const trackName=document.getElementById("trackName");
+const albumArt=document.getElementById("albumArt");
+const lyrics=document.getElementById("lyrics");
 
 /* ================== SETTINGS ================== */
 const settingsBtn=document.getElementById("settingsBtn");
@@ -149,7 +160,8 @@ let l=localStorage.getItem('layout');if(l){layoutSelect.value=l;if(l!="default")
 /* ================== UPLOAD ================== */
 document.getElementById("folderInput").addEventListener("change",e=>{
 songs=[];queue=[];
-for(let file of e.target.files){if(file.type.startsWith('audio'))songs.push({name:file.name,url:URL.createObjectURL(file)});}
+for(let file of e.target.files){
+if(file.type.startsWith('audio')) songs.push({name:file.name,url:URL.createObjectURL(file),art:'',lyrics:'Lyrics placeholder'});
 queue=[...songs];showLibrary();
 });
 
@@ -158,10 +170,20 @@ function showLibrary(){content.innerHTML='';songs.forEach((s,i)=>{let d=document
 function addToQueue(i){queue.push(songs[i]);showQueue();}
 function showQueue(){content.innerHTML='';queue.forEach((s,i)=>{let d=document.createElement('div');d.className='song'+(i===currentIndex?' active':'');d.draggable=true; d.innerHTML=`${i+1}. ${s.name}`;d.ondragstart=e=>e.dataTransfer.setData('text/plain',i);d.ondragover=e=>e.preventDefault();d.ondrop=e=>{let from=e.dataTransfer.getData('text');let temp=queue[from];queue.splice(from,1);queue.splice(i,0,temp);showQueue();};d.onclick=()=>playSong(i);content.appendChild(d);})}
 function shuffleQueue(){queue.sort(()=>Math.random()-0.5);showQueue();}
-function clearQueue(){queue=[];audio.pause();nowPlaying.textContent='Queue Cleared';showQueue();}
+function clearQueue(){queue=[];audio.pause();trackName.textContent='Queue Cleared';albumArt.style.background='';lyrics.textContent='';showQueue();}
 
 /* ================== PLAYBACK ================== */
-function playSong(i){if(!queue[i])return;currentIndex=i;audio.src=queue[i].url;audio.play();nowPlaying.textContent=queue[i].name;showQueue();initVisualizer();}
+function playSong(i){
+if(!queue[i])return;
+currentIndex=i;
+audio.src=queue[i].url;
+audio.play();
+trackName.textContent=queue[i].name;
+lyrics.textContent=queue[i].lyrics;
+albumArt.style.backgroundImage=`url('${queue[i].art}')`;
+showQueue();
+initVisualizer();
+}
 function togglePlay(){audio.paused?audio.play():audio.pause();}
 function nextSong(){if(queue.length==0)return;if(shuffle)currentIndex=Math.floor(Math.random()*queue.length);else currentIndex=(currentIndex+1)%queue.length;playSong(currentIndex);}
 function prevSong(){if(queue.length==0)return;currentIndex=(currentIndex-1+queue.length)%queue.length;playSong(currentIndex);}
@@ -203,7 +225,6 @@ document.addEventListener('touchend',e=>{let diff=e.changedTouches[0].screenX-to
 
 /* ================== MEDIA SESSION ================== */
 if('mediaSession' in navigator){navigator.mediaSession.setActionHandler('play',()=>togglePlay());navigator.mediaSession.setActionHandler('pause',()=>togglePlay());navigator.mediaSession.setActionHandler('previoustrack',()=>prevSong());navigator.mediaSession.setActionHandler('nexttrack',()=>nextSong());}
-
 </script>
 </body>
 </html>
