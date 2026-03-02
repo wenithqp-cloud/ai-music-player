@@ -1,0 +1,9 @@
+{
+"name":"Extreme MP3",
+"short_name":"MP3",
+"start_url":".",
+"display":"standalone",
+"background_color":"#0f0f0f",
+"theme_color":"#ff3c3c",
+"icons":[]
+}
