@@ -231,6 +231,59 @@ window.onload=()=>{
   let t=localStorage.getItem('theme');if(t){themeSelect.value=t;document.documentElement.style.setProperty('--bg',themes[t].bg);document.documentElement.style.setProperty('--accent',themes[t].accent);}
   let l=localStorage.getItem('layout');if(l){layoutSelect.value=l;if(l!="default")document.body.classList.add(l);}
 };
+  // ====== PLAYLIST PAGE WITH DRAG & SEARCH ======
+function showPlaylists(){
+  content.innerHTML='';
+
+  // Search bar for playlists
+  let searchInput = document.createElement('input');
+  searchInput.placeholder = "Search songs in playlists...";
+  searchInput.style.width = "100%";
+  searchInput.style.padding = "8px";
+  searchInput.style.marginBottom = "8px";
+  searchInput.style.borderRadius = "6px";
+  searchInput.style.border = "none";
+  searchInput.style.background = "var(--panel2)";
+  searchInput.style.color = "var(--text)";
+  content.appendChild(searchInput);
+
+  for(let pl in playlists){
+    let container=document.createElement('div');container.className='playlist-container';
+    let title=document.createElement('div');title.textContent=pl;title.style.fontWeight="bold";container.appendChild(title);
+
+    playlists[pl].forEach((s,i)=>{
+      let sdiv=document.createElement('div');sdiv.className='song';
+      sdiv.draggable = true;
+      sdiv.innerHTML=`<span>${s.name}</span><button class="remove-btn" onclick="removeFromPlaylist('${pl}',${i})">x</button>`;
+      sdiv.onclick=()=>playSongFromPlaylist(pl,i);
+
+      // Drag & Drop
+      sdiv.ondragstart = e => e.dataTransfer.setData('text/plain', i);
+      sdiv.ondragover = e => e.preventDefault();
+      sdiv.ondrop = e => {
+        let from = e.dataTransfer.getData('text');
+        let temp = playlists[pl][from];
+        playlists[pl].splice(from, 1);
+        playlists[pl].splice(i, 0, temp);
+        savePlaylists();
+        showPlaylists();
+      };
+
+      container.appendChild(sdiv);
+    });
+
+    content.appendChild(container);
+  }
+
+  // Filter songs as user types
+  searchInput.oninput = e => {
+    let val = e.target.value.toLowerCase();
+    content.querySelectorAll('.playlist-container .song').forEach(songDiv => {
+      let text = songDiv.querySelector('span').textContent.toLowerCase();
+      songDiv.style.display = text.includes(val) ? 'flex' : 'none';
+    });
+  };
+}
 </script>
 
 </body>
