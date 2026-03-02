@@ -3,227 +3,308 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PlayBar</title>
+<title>Extreme MP3 Platform</title>
 
 <script src="https://cdn.jsdelivr.net/npm/jsmediatags@3.9.5/dist/jsmediatags.min.js"></script>
 
 <style>
-body{margin:0;font-family:Arial;background:#111;color:white;}
-header{background:#1e1e1e;padding:15px;display:flex;align-items:center;}
-.menu-btn{font-size:22px;cursor:pointer;}
-.dropdown{position:absolute;top:60px;left:10px;background:#222;padding:10px;display:none;border-radius:10px;width:240px;}
-.dropdown div{padding:12px;cursor:pointer;border-bottom:1px solid #333;}
-.section{display:none;padding:20px;}
-.active{display:block;}
-.song-item{padding:10px;border-bottom:1px solid #333;cursor:pointer;}
-.vinyl{width:230px;height:230px;border-radius:50%;margin:20px auto;animation:spin 6s linear infinite;background-size:cover;background-position:center;background-color:black;}
-@keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
-.controls{text-align:center;margin-top:15px;}
-.controls button{padding:15px;margin:10px;border-radius:50%;border:none;font-size:20px;cursor:pointer;}
-.progress{width:90%;margin:10px auto;}
-.meta{text-align:center;margin-top:10px;}
-.plus-btn{width:60px;height:60px;font-size:26px;border-radius:50%;margin-top:20px;}
-select,input[type=text]{padding:8px;margin:5px 0;width:100%;}
+:root{
+--bg:#0f0f0f;
+--panel:#1b1b1b;
+--accent:#ff3c3c;
+--text:#ffffff;
+--highlight:#ff3c3c;
+--shadow:rgba(255,60,60,0.4);
+}
+body[data-theme="light"]{
+--bg:#f4f4f4;
+--panel:#ffffff;
+--text:#111;
+--highlight:#ff3c3c;
+--shadow:rgba(255,60,60,0.3);
+}
+body[data-theme="peach"]{
+--bg:#ffe5d9;
+--panel:#ffd6c0;
+--text:#111;
+--highlight:#ff6f61;
+--shadow:rgba(255,111,97,0.3);
+}
+body[data-theme="fruity"]{
+--bg:#fff6e5;
+--panel:#ffe0b3;
+--text:#111;
+--highlight:#ff9f1c;
+--shadow:rgba(255,159,28,0.3);
+}
+
+*{margin:0;padding:0;box-sizing:border-box;transition:all .3s ease}
+body{
+background:var(--bg);
+color:var(--text);
+font-family:Segoe UI,sans-serif;
+padding:20px;
+}
+
+h1{text-align:center;margin-bottom:20px;color:var(--text);transition:all .3s ease}
+
+.panel{
+background:var(--panel);
+padding:20px;
+border-radius:25px;
+box-shadow:0 10px 25px var(--shadow);
+margin-bottom:20px;
+}
+
+button{
+background:var(--accent);
+border:none;
+padding:10px 20px;
+border-radius:30px;
+color:#fff;
+font-weight:bold;
+cursor:pointer;
+margin:5px;
+box-shadow:0 5px 15px var(--shadow);
+transition:all .2s ease;
+}
+button:hover{transform:scale(1.08);box-shadow:0 10px 25px var(--shadow);}
+
+#playlist div{padding:8px;cursor:pointer;border-radius:10px;transition:all .2s ease;}
+#playlist div:hover{background:rgba(255,255,255,.1)}
+
+#uploadContainer{display:none;margin-top:10px}
+#uploadBar{width:0%;height:15px;background:var(--highlight);border-radius:20px;box-shadow:0 0 10px var(--highlight);transition:.3s}
+.progressWrap{background:#444;border-radius:20px;overflow:hidden}
+
+#vinylCanvas{display:block;margin:20px auto;box-shadow:0 0 20px var(--shadow);border-radius:50%;}
+
+#coverArt{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+width:150px;height:150px;border-radius:50%;object-fit:cover;pointer-events:none;
+box-shadow:0 10px 25px var(--shadow);transition:transform .3s ease;}
+#coverArt:hover{transform:translate(-50%,-50%) scale(1.05);}
+.eq input{width:60px;margin-right:5px}
 </style>
 </head>
 
-<body>
+<body data-theme="dark">
 
-<header>
-  <div class="menu-btn" onclick="toggleMenu()">☰</div>
-  <h3 style="margin-left:15px;">PlayBar</h3>
-</header>
+<h1>Extreme MP3 Platform</h1>
 
-<div class="dropdown" id="menu">
-  <div onclick="showSection('files')">1. Files & Folders</div>
-  <div onclick="showSection('songs')">2. Songs</div>
-  <div onclick="showSection('playlists')">3. Playlists</div>
-  <div onclick="showSection('playbar')">4. PlayBar</div>
-  <div onclick="showSection('settings')">5. Settings</div>
+<div class="panel">
+<input type="file" id="fileInput" multiple webkitdirectory hidden>
+<button onclick="fileInput.click()">Upload Files / Folder</button>
+<button onclick="toggleTheme()">Toggle Theme</button>
+<button id="saveBtn">Save</button>
+<button id="loadBtn">Load</button>
+<button onclick="sortPlaylist()">Sort A-Z</button>
+
+<div id="uploadContainer">
+<div class="progressWrap"><div id="uploadBar"></div></div>
+<p id="uploadText" style="font-size:12px;margin-top:5px;"></p>
+</div>
 </div>
 
-<!-- FILES -->
-<div class="section" id="files">
-  <h2>Upload Files</h2>
-  <input type="file" multiple accept="audio/*" onchange="loadFiles(event)">
-  <h2>Upload Folder</h2>
-  <input type="file" webkitdirectory directory multiple onchange="loadFiles(event)">
+<div class="panel">
+<div style="position:relative;width:300px;height:300px;margin:20px auto;">
+<canvas id="vinylCanvas" width="300" height="300"></canvas>
+<img id="coverArt" src="default.jpg">
+</div>
+<h2 id="songTitle">No Song</h2>
+<p id="songArtist">Artist</p>
+<p id="songAlbum">Album</p>
+<audio id="audio" controls style="width:100%"></audio>
+
+<h3 style="margin-top:15px;">Equalizer</h3>
+<div class="eq">
+<input type="range" min="-15" max="15" value="0" data-band="0">
+<input type="range" min="-15" max="15" value="0" data-band="1">
+<input type="range" min="-15" max="15" value="0" data-band="2">
+<input type="range" min="-15" max="15" value="0" data-band="3">
+<input type="range" min="-15" max="15" value="0" data-band="4">
+</div>
 </div>
 
-<!-- SONGS -->
-<div class="section" id="songs">
-  <h2>All Songs</h2>
-  <select onchange="sortSongs(this.value)">
-    <option value="title">Sort by Title</option>
-    <option value="artist">Sort by Artist</option>
-    <option value="album">Sort by Album</option>
-    <option value="genre">Sort by Genre</option>
-  </select>
-  <div id="songList"></div>
-</div>
-
-<!-- PLAYLISTS -->
-<div class="section" id="playlists">
-  <h2>Playlists</h2>
-  <div id="playlistList"></div>
-  <button class="plus-btn" onclick="openPlaylistCreator()">+</button>
-</div>
-
-<!-- PLAYBAR -->
-<div class="section active" id="playbar">
-  <div class="vinyl" id="vinyl"></div>
-  <div class="meta">
-    <h3 id="title">No Song</h3>
-    <p id="artist"></p>
-    <p id="album"></p>
-  </div>
-  <audio id="audio" ontimeupdate="updateProgress()"></audio>
-  <input type="range" id="progress" class="progress" min="0" max="100" value="0" onchange="seekSong()">
-  <div class="controls">
-    <button onclick="prevSong()">⏮</button>
-    <button onclick="togglePlay()">⏯</button>
-    <button onclick="nextSong()">⏭</button>
-  </div>
-</div>
-
-<!-- SETTINGS -->
-<div class="section" id="settings">
-  <h2>Theme</h2>
-  <button onclick="setTheme('dark')">Dark</button>
-  <button onclick="setTheme('light')">Light</button>
-  <button onclick="setTheme('peach')">Peach</button>
-  <button onclick="setTheme('fruit')">Fruitier Ergo</button>
-
-  <h2>Data</h2>
-  <button onclick="saveData()">Save</button>
-  <button onclick="loadData()">Load</button>
-
-  <h3>Info</h3>
-  <p>Email: wenithqp@gmail.com</p>
-  <p>Version: 0.0.1</p>
-</div>
+<div class="panel" id="playlist"></div>
 
 <script>
-let songs=[];
-let playlists=[];
-let currentIndex=0;
+const audio=document.getElementById("audio");
+const fileInput=document.getElementById("fileInput");
+const playlistDiv=document.getElementById("playlist");
+const uploadBar=document.getElementById("uploadBar");
+const uploadText=document.getElementById("uploadText");
+const uploadContainer=document.getElementById("uploadContainer");
+const vinylCanvas=document.getElementById("vinylCanvas");
+const vctx=vinylCanvas.getContext("2d");
+const coverArt=document.getElementById("coverArt");
 
-window.onload=function(){
-  playlists.push({name:"Yeah Bro this All yo Music get a life",songs:[]});
-  renderPlaylists();
+const SETTINGS_KEY="extremeMP3_settings";
+let playlist=[],currentIndex=0;
+let waveformData=[],isDragging=false,currentRotation=0;
+
+/* ===== Upload with Loading Bar ===== */
+fileInput.addEventListener("change",async e=>{
+const files=[...e.target.files].filter(f=>f.type.includes("audio"));
+if(!files.length)return;
+uploadContainer.style.display="block";
+playlist=[];
+for(let i=0;i<files.length;i++){
+playlist.push(files[i]);
+let percent=Math.round((i+1)/files.length*100);
+uploadBar.style.width=percent+"%";
+uploadText.textContent="Loading "+percent+"%";
+await new Promise(r=>setTimeout(r,15));
+}
+renderPlaylist();
+loadSong(0);
+setTimeout(()=>uploadContainer.style.display="none",700);
+});
+
+/* ===== Playlist ===== */
+function renderPlaylist(){
+playlistDiv.innerHTML="";
+playlist.forEach((file,i)=>{
+const div=document.createElement("div");
+div.textContent=file.name;
+div.onclick=()=>loadSong(i);
+playlistDiv.appendChild(div);
+});
+}
+function sortPlaylist(){
+playlist.sort((a,b)=>a.name.localeCompare(b.name));
+renderPlaylist();
 }
 
-function toggleMenu(){let m=document.getElementById("menu");m.style.display=m.style.display==="block"?"none":"block";}
-function showSection(id){document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));document.getElementById(id).classList.add("active");toggleMenu();}
+/* ===== Audio Engine ===== */
+const audioCtx=new AudioContext();
+const src=audioCtx.createMediaElementSource(audio);
+const analyser=audioCtx.createAnalyser();
+const gainNode=audioCtx.createGain();
+const panner=audioCtx.createStereoPanner();
+const freqs=[60,170,350,1000,3500];
+const filters=freqs.map(freq=>{
+let f=audioCtx.createBiquadFilter();
+f.type="peaking";
+f.frequency.value=freq;
+f.Q.value=1;
+f.gain.value=0;
+return f;
+});
+src.connect(filters[0]);
+for(let i=0;i<filters.length-1;i++)filters[i].connect(filters[i+1]);
+filters[filters.length-1].connect(panner).connect(gainNode).connect(analyser).connect(audioCtx.destination);
 
-function loadFiles(event){
-  for(let file of event.target.files){
-    if(file.type.startsWith("audio/")){
-      jsmediatags.read(file,{
-        onSuccess:tag=>{
-          let pic=null;
-          if(tag.tags.picture){
-            let data=tag.tags.picture.data;
-            let format=tag.tags.picture.format;
-            let base64="";
-            for(let i=0;i<data.length;i++){base64+=String.fromCharCode(data[i]);}
-            pic="data:"+format+";base64,"+btoa(base64);
-          }
-          let song={
-            title:tag.tags.title||file.name,
-            artist:tag.tags.artist||"Unknown Artist",
-            album:tag.tags.album||"Unknown Album",
-            genre:tag.tags.genre||"Unknown",
-            url:URL.createObjectURL(file),
-            cover:pic
-          };
-          songs.push(song);
-          playlists[0].songs.push(song);
-          renderSongs();
-        }
-      });
-    }
-  }
+/* Equalizer Controls */
+document.querySelectorAll(".eq input")
+.forEach(slider=>slider.oninput=e=>{
+filters[e.target.dataset.band].gain.value=e.target.value;
+});
+
+/* Spatial Auto Pan */
+let dir=1;
+function autoPan(){panner.pan.value+=0.002*dir;if(panner.pan.value>1||panner.pan.value<-1)dir*=-1;requestAnimationFrame(autoPan);}
+autoPan();
+
+/* ===== Save / Load ===== */
+function saveSettings(){localStorage.setItem(SETTINGS_KEY,JSON.stringify({theme:document.body.dataset.theme,volume:audio.volume,lastSong:currentIndex}));alert("Saved!");}
+function loadSettings(){const s=JSON.parse(localStorage.getItem(SETTINGS_KEY)||"null");if(!s)return;document.body.dataset.theme=s.theme;audio.volume=s.volume;}
+saveBtn.onclick=saveSettings;
+loadBtn.onclick=loadSettings;
+window.onload=loadSettings;
+
+/* ===== Drag & Drop ===== */
+document.body.ondragover=e=>e.preventDefault();
+document.body.ondrop=e=>{
+e.preventDefault();
+playlist=[...e.dataTransfer.files].filter(f=>f.type.includes("audio"));
+renderPlaylist();
+loadSong(0);
+};
+
+/* ===== Load Song + Waveform + Metadata + Crossfade ===== */
+async function generateWaveform(file){
+const arrayBuffer=await file.arrayBuffer();
+const audioBuffer=await audioCtx.decodeAudioData(arrayBuffer);
+const rawData=audioBuffer.getChannelData(0);
+const samples=200;
+const blockSize=Math.floor(rawData.length/samples);
+waveformData=[];
+for(let i=0;i<samples;i++){
+let blockStart=blockSize*i,sum=0;
+for(let j=0;j<blockSize;j++){sum+=Math.abs(rawData[blockStart+j]);}
+waveformData.push(sum/blockSize);
+}
 }
 
-function renderSongs(){
-  let list=document.getElementById("songList");
-  list.innerHTML="";
-  songs.forEach((s,i)=>{
-    let div=document.createElement("div");
-    div.className="song-item";
-    div.innerHTML="<strong>"+s.title+"</strong><br>"+s.artist+" • "+s.album+" • "+s.genre;
-    div.onclick=()=>playSong(i);
-    list.appendChild(div);
-  });
+async function loadSong(index){
+if(!playlist[index])return;
+currentIndex=index;
+const file=playlist[index];
+audio.src=URL.createObjectURL(file);
+await generateWaveform(file);
+readMetadata(file);
+audio.play();
+let fade=0;
+let fadeInterval=setInterval(()=>{fade+=0.05;audio.volume=Math.min(fade,1);if(fade>=1)clearInterval(fadeInterval);},50);
 }
 
-function sortSongs(type){
-  songs.sort((a,b)=>a[type].localeCompare(b[type]));
-  renderSongs();
+/* ===== Metadata ===== */
+function readMetadata(file){
+coverArt.src="default.jpg";
+jsmediatags.read(file,{
+onSuccess:tag=>{
+const t=tag.tags;
+document.getElementById("songTitle").textContent=t.title||file.name;
+document.getElementById("songArtist").textContent=t.artist||"Unknown Artist";
+document.getElementById("songAlbum").textContent=t.album||"Unknown Album";
+if(t.picture){
+let base64="";t.picture.data.forEach(b=>base64+=String.fromCharCode(b));
+coverArt.src=`data:${t.picture.format};base64,${btoa(base64)}`;
+}
+},
+onError:()=>{}
+});
 }
 
-function renderPlaylists(){
-  let list=document.getElementById("playlistList");
-  list.innerHTML="";
-  playlists.forEach(pl=>{
-    let div=document.createElement("div");
-    div.className="song-item";
-    div.innerText=pl.name+" ("+pl.songs.length+")";
-    list.appendChild(div);
-  });
-}
+/* ===== Theme ===== */
+function toggleTheme(){document.body.dataset.theme=document.body.dataset.theme==="dark"?"light":"dark";}
 
-function openPlaylistCreator(){
-  let name=prompt("Playlist name:");
-  if(!name)return;
+/* ===== Vinyl + Waveform + Neon Glow ===== */
+function drawVinyl(){
+requestAnimationFrame(drawVinyl);
+vctx.clearRect(0,0,300,300);
+const center=150,radius=120;
+if(!audio.paused && !isDragging)currentRotation+=0.01;
+for(let i=0;i<waveformData.length;i++){
+let angle=(i/waveformData.length)*Math.PI*2+currentRotation;
+let value=waveformData[i]*100;
+let x1=center+Math.cos(angle)*radius;
+let y1=center+Math.sin(angle)*radius;
+let x2=center+Math.cos(angle)*(radius+value);
+let y2=center+Math.sin(angle)*(radius+value);
+let progressAngle=(audio.currentTime/audio.duration)*Math.PI*2||0;
+vctx.strokeStyle=(angle% (Math.PI*2))<progressAngle?"var(--highlight)":"rgba(255,255,255,.2)";
+vctx.lineWidth=2;
+vctx.shadowBlur=5;
+vctx.shadowColor="var(--highlight)";
+vctx.beginPath();vctx.moveTo(x1,y1);vctx.lineTo(x2,y2);vctx.stroke();
+}}
+drawVinyl();
+/* Vinyl Drag Scrub */
+vinylCanvas.addEventListener("mousedown",()=>isDragging=true);
+window.addEventListener("mouseup",()=>isDragging=false);
+vinylCanvas.addEventListener("mousemove",e=>{
+if(!isDragging || !audio.duration)return;
+const rect=vinylCanvas.getBoundingClientRect();
+const x=e.clientX-rect.left-150;
+const y=e.clientY-rect.top-150;
+let angle=Math.atan2(y,x);
+if(angle<0)angle+=Math.PI*2;
+audio.currentTime=(angle/(Math.PI*2))*audio.duration;
+});
 
-  let mode=confirm("Press OK for Auto AI Playlist. Cancel for Manual.");
-
-  if(mode){ // AI Mode
-    let vibe=prompt("Enter genre or artist vibe:");
-    let newList=songs.filter(s=>s.genre.toLowerCase().includes(vibe.toLowerCase())||s.artist.toLowerCase().includes(vibe.toLowerCase()));
-    playlists.push({name:name,songs:newList});
-  }else{ // Manual
-    let selected=[];
-    songs.forEach((s,i)=>{
-      if(confirm("Add "+s.title+" ?")) selected.push(s);
-    });
-    playlists.push({name:name,songs:selected});
-  }
-
-  renderPlaylists();
-}
-
-function playSong(i){
-  currentIndex=i;
-  let audio=document.getElementById("audio");
-  let vinyl=document.getElementById("vinyl");
-  let s=songs[i];
-  audio.src=s.url;
-  audio.play();
-  document.getElementById("title").innerText=s.title;
-  document.getElementById("artist").innerText=s.artist;
-  document.getElementById("album").innerText=s.album;
-  vinyl.style.backgroundImage=s.cover?"url('"+s.cover+"')":"none";
-  showSection("playbar");
-}
-
-function togglePlay(){let a=document.getElementById("audio");a.paused?a.play():a.pause();}
-function nextSong(){if(currentIndex<songs.length-1)playSong(currentIndex+1);}
-function prevSong(){if(currentIndex>0)playSong(currentIndex-1);}
-function updateProgress(){let a=document.getElementById("audio");if(a.duration)document.getElementById("progress").value=(a.currentTime/a.duration)*100;}
-function seekSong(){let a=document.getElementById("audio");let p=document.getElementById("progress");a.currentTime=(p.value/100)*a.duration;}
-
-function setTheme(t){
-  if(t==="dark"){document.body.style.background="#111";document.body.style.color="white";}
-  if(t==="light"){document.body.style.background="#eee";document.body.style.color="black";}
-  if(t==="peach"){document.body.style.background="#ffccaa";document.body.style.color="black";}
-  if(t==="fruit"){document.body.style.background="#331133";document.body.style.color="white";}
-}
-
-function saveData(){localStorage.setItem("songs",JSON.stringify(songs));localStorage.setItem("playlists",JSON.stringify(playlists));alert("Saved!");}
-function loadData(){let s=localStorage.getItem("songs");let p=localStorage.getItem("playlists");if(s)songs=JSON.parse(s);if(p)playlists=JSON.parse(p);renderSongs();renderPlaylists();}
+/* ===== PWA ===== */
+if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js");
 </script>
 
 </body>
