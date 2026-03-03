@@ -71,13 +71,17 @@ button:hover{background:var(--accent);}
   overflow-y:auto;
   box-shadow:0 0 40px rgba(0,0,0,.8);
   opacity:0;
-  transition:transform .3s, opacity .3s;
+  transition:transform .3s, opacity .3s, box-shadow .2s;
   z-index:999;
 }
 #settingsMenu.active{
   transform:translate(-50%,-50%) scale(1);
   opacity:1;
   cursor:grab;
+}
+#settingsMenu.dragging{
+  transform:scale(0.95);
+  box-shadow:0 0 60px rgba(0,0,0,.9);
 }
 #settingsMenu label{
   font-weight:bold;
@@ -101,7 +105,6 @@ button:hover{background:var(--accent);}
 <button id="settingsBtn">⚙</button>
 </header>
 
-<!-- Overlay for blur effect -->
 <div id="settingsOverlay"></div>
 
 <div id="settingsMenu">
@@ -172,90 +175,37 @@ button:hover{background:var(--accent);}
 
 <script>
 // ================= CORE DATA =================
-let songs = [];
-let queue = [];
-let currentIndex = 0;
-let shuffle = false;
-let repeat = false;
-let playlists = {};
-
-const audio = document.getElementById("audio");
-const content = document.getElementById("content");
-const trackName = document.getElementById("trackName");
-const albumArt = document.getElementById("albumArt");
-const lyrics = document.getElementById("lyrics");
-const playlistSelect = document.getElementById("playlistSelect");
+let songs=[], queue=[], currentIndex=0, shuffle=false, repeat=false, playlists={};
+const audio=document.getElementById("audio");
+const content=document.getElementById("content");
+const trackName=document.getElementById("trackName");
+const albumArt=document.getElementById("albumArt");
+const lyrics=document.getElementById("lyrics");
+const playlistSelect=document.getElementById("playlistSelect");
 
 // ================= UTIL =================
 function generateID(){ return "_" + Math.random().toString(36).substr(2,9); }
-function savePlaylists(){ localStorage.setItem("playlists", JSON.stringify(playlists)); updatePlaylistSelect();}
-function loadPlaylists(){ let data = localStorage.getItem("playlists"); if(data) playlists = JSON.parse(data); updatePlaylistSelect();}
+function savePlaylists(){ localStorage.setItem("playlists", JSON.stringify(playlists)); updatePlaylistSelect(); }
+function loadPlaylists(){ let data=localStorage.getItem("playlists"); if(data) playlists=JSON.parse(data); updatePlaylistSelect(); }
 function updatePlaylistSelect(){ playlistSelect.innerHTML=""; Object.keys(playlists).forEach(p=>{ let o=document.createElement("option"); o.value=p; o.textContent=p; playlistSelect.appendChild(o); }); }
-
-// ================= PLAYLIST MANAGEMENT =================
-function addPlaylist(){ let name=document.getElementById("playlistNameInput").value.trim(); if(!name||playlists[name])return; playlists[name]={songs:[]}; savePlaylists(); document.getElementById("playlistNameInput").value="";}
-function deletePlaylist(){ let p=playlistSelect.value; if(p){ delete playlists[p]; savePlaylists(); showPlaylists(); }}
-function renamePlaylist(oldName){ let newName=prompt("New playlist name:"); if(!newName||playlists[newName])return; playlists[newName]=playlists[oldName]; delete playlists[oldName]; savePlaylists(); showPlaylists();}
-
-// ================= SONG UPLOAD =================
-document.getElementById("folderInput").addEventListener("change", e=>{
-  songs=[]; queue=[];
-  const files=Array.from(e.target.files).filter(f=>f.name.toLowerCase().match(/\.(mp3|wav|ogg)$/));
-  files.forEach(file=>{
-    let song={id:generateID(),name:file.name.replace(/\.[^/.]+$/,""),url:URL.createObjectURL(file),art:"",lyrics:"Lyrics unavailable"};
-    jsmediatags.read(file,{onSuccess: tag=>{if(tag.tags.picture){let b=""; tag.tags.picture.data.forEach(byte=>b+=String.fromCharCode(byte)); song.art="data:"+tag.tags.picture.format+";base64,"+btoa(b);}}});
-    songs.push(song);
-  });
-  queue=[...songs];
-  showLibrary();
-  if(songs.length>0) playSong(0);
-});
-
-// ================= LIBRARY =================
-function showLibrary(){ content.innerHTML=""; songs.forEach((s,i)=>{ let div=document.createElement("div"); div.className="song"; div.textContent=s.name;
-  let btn=document.createElement("button"); btn.textContent="+"; btn.className="add-to-playlist"; btn.onclick=(ev)=>{ev.stopPropagation(); let p=playlistSelect.value; if(!p)return; if(!playlists[p].songs.includes(s.id)){ playlists[p].songs.push(s.id); savePlaylists();}}; div.appendChild(btn); div.onclick=()=>playSong(i); content.appendChild(div); });}
-
-// ================= PLAYLIST PAGE =================
-function showPlaylists(){ content.innerHTML=""; for(let pl in playlists){ let wrapper=document.createElement("div"); wrapper.style.border="1px solid var(--accent)"; wrapper.style.padding="10px"; wrapper.style.borderRadius="8px"; wrapper.style.margin="8px 0";
-let header=document.createElement("div"); header.style.display="flex"; header.style.justifyContent="space-between"; header.style.alignItems="center";
-let title=document.createElement("div"); title.textContent=pl; title.style.fontWeight="bold";
-let controls=document.createElement("div"); let renameBtn=document.createElement("button"); renameBtn.textContent="✏"; renameBtn.onclick=()=>renamePlaylist(pl); controls.appendChild(renameBtn); header.appendChild(title); header.appendChild(controls); wrapper.appendChild(header);
-playlists[pl].songs.forEach((songID,index)=>{ let song=songs.find(s=>s.id===songID); if(!song)return;
-let sdiv=document.createElement("div"); sdiv.className="song"; sdiv.textContent=song.name; sdiv.draggable=true;
-sdiv.ondragstart=e=>e.dataTransfer.setData("text",index);
-sdiv.ondragover=e=>e.preventDefault();
-sdiv.ondrop=e=>{ e.preventDefault(); let from=e.dataTransfer.getData("text"); let arr=playlists[pl].songs; arr.splice(index,0,arr.splice(from,1)[0]); savePlaylists(); showPlaylists();};
-sdiv.onclick=()=>{ queue=playlists[pl].songs.map(id=>songs.find(s=>s.id===id)).filter(Boolean); playSong(index);};
-let remove=document.createElement("button"); remove.textContent="x"; remove.onclick=(ev)=>{ ev.stopPropagation(); playlists[pl].songs.splice(index,1); savePlaylists(); showPlaylists();}; sdiv.appendChild(remove); wrapper.appendChild(sdiv); });
-content.appendChild(wrapper);}
-
-// ================= PLAYBACK =================
-function playSong(i){ if(!queue[i]) return; currentIndex=i; audio.src=queue[i].url; audio.play(); trackName.textContent=queue[i].name; lyrics.textContent=queue[i].lyrics; albumArt.style.backgroundImage=queue[i].art?`url('${queue[i].art}')`:"";}
-function togglePlay(){audio.paused?audio.play():audio.pause();}
-function nextSong(){if(queue.length===0)return; currentIndex=shuffle?Math.floor(Math.random()*queue.length):(currentIndex+1)%queue.length; playSong(currentIndex);}
-function prevSong(){if(queue.length===0)return; currentIndex=(currentIndex-1+queue.length)%queue.length; playSong(currentIndex);}
-audio.onended=()=>repeat?playSong(currentIndex):nextSong();
-
-// ================= SEARCH =================
-document.getElementById("search").oninput=e=>{ let q=e.target.value.toLowerCase(); content.innerHTML=""; songs.forEach((s,i)=>{ if(s.name.toLowerCase().includes(q)){ let d=document.createElement("div"); d.className="song"; d.textContent=s.name; d.onclick=()=>playSong(i); content.appendChild(d); } });};
 
 // ================= SETTINGS PANEL =================
 const settingsBtn=document.getElementById("settingsBtn");
 const settingsMenu=document.getElementById("settingsMenu");
 const settingsOverlay=document.getElementById("settingsOverlay");
 
-function openSettings(){ settingsMenu.classList.add("active"); settingsOverlay.classList.add("active"); document.body.style.overflow="hidden";}
-function closeSettings(){ settingsMenu.classList.remove("active"); settingsOverlay.classList.remove("active"); document.body.style.overflow="";}
-
+function openSettings(){ settingsMenu.classList.add("active"); settingsOverlay.classList.add("active"); document.body.style.overflow="hidden"; }
+function closeSettings(){ settingsMenu.classList.remove("active"); settingsOverlay.classList.remove("active"); document.body.style.overflow=""; }
 settingsBtn.addEventListener("click",(e)=>{ e.stopPropagation(); settingsMenu.classList.contains("active")?closeSettings():openSettings(); });
 settingsOverlay.addEventListener("click",closeSettings);
 document.addEventListener("keydown",(e)=>{ if(e.key==="Escape") closeSettings(); });
 
-// ================= DRAG =================
+// ================= DRAG WITH EFFECT =================
 let isDragging=false, offsetX=0, offsetY=0;
 settingsMenu.addEventListener("mousedown",(e)=>{
   if(!e.target.closest("input,select,button")){
     isDragging=true;
+    settingsMenu.classList.add("dragging");
     settingsMenu.style.cursor="grabbing";
     const rect=settingsMenu.getBoundingClientRect();
     offsetX=e.clientX-rect.left;
@@ -264,7 +214,7 @@ settingsMenu.addEventListener("mousedown",(e)=>{
   }
 });
 document.addEventListener("mousemove",(e)=>{
-  if(!isDragging)return;
+  if(!isDragging) return;
   settingsMenu.style.left=(e.clientX-offsetX)+"px";
   settingsMenu.style.top=(e.clientY-offsetY)+"px";
   settingsMenu.style.transform="none";
@@ -272,14 +222,11 @@ document.addEventListener("mousemove",(e)=>{
 document.addEventListener("mouseup",()=>{
   if(isDragging){
     isDragging=false;
+    settingsMenu.classList.remove("dragging");
     settingsMenu.style.cursor="grab";
-    settingsMenu.style.transition="transform .3s, opacity .3s";
+    settingsMenu.style.transition="transform .3s, opacity .3s, box-shadow .2s";
   }
 });
-
-// ================= INIT =================
-window.onload=()=>loadPlaylists();
 </script>
-
 </body>
 </html>
