@@ -13,9 +13,6 @@ body{margin:0;padding:0;height:100vh;display:flex;flex-direction:column;font-fam
 header{background:var(--panel);padding:12px;display:flex;align-items:center;justify-content:space-between;}
 #search{width:65%;padding:12px;border-radius:10px;border:none;background:var(--panel2);color:var(--text);}
 #settingsBtn{background:var(--panel2);border:none;padding:8px 14px;border-radius:8px;color:var(--text);cursor:pointer;}
-#settingsMenu{position:absolute;top:60px;right:20px;background:var(--panel);padding:15px;border-radius:12px;display:none;flex-direction:column;gap:10px;width:340px;box-shadow:0 0 20px rgba(0,0,0,.6);z-index:1000;}
-#settingsMenu label{font-weight:bold;}
-#settingsMenu select,#settingsMenu input{background:var(--panel2);color:var(--text);border:none;padding:6px;border-radius:6px;width:100%;}
 #main{flex:1;display:flex;overflow:hidden;transition:.3s;}
 #sidebar{width:220px;background:var(--panel);padding:10px;display:flex;flex-direction:column;gap:10px;transition:.3s;}
 #content{flex:1;padding:15px;overflow-y:auto;transition:.3s;}
@@ -42,6 +39,58 @@ button:hover{background:var(--accent);}
 .layout-topbar #main{flex-direction:column;}
 .layout-topbar #sidebar{width:100%;flex-direction:row;overflow-x:auto;}
 @media(max-width:700px){#sidebar{display:none;}#search{width:75%;}}
+
+/* ================= SETTINGS PANEL ================= */
+#settingsOverlay{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.6);
+  backdrop-filter:blur(6px);
+  opacity:0;
+  pointer-events:none;
+  transition:.3s;
+  z-index:999;
+}
+#settingsOverlay.active{
+  opacity:1;
+  pointer-events:all;
+}
+#settingsMenu{
+  position:fixed;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%) scale(.9);
+  background:var(--panel);
+  padding:20px;
+  border-radius:16px;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  width:360px;
+  max-height:80vh;
+  overflow-y:auto;
+  box-shadow:0 0 40px rgba(0,0,0,.8);
+  opacity:0;
+  transition:.3s;
+  cursor:grab;
+}
+#settingsMenu.active{
+  transform:translate(-50%,-50%) scale(1);
+  opacity:1;
+}
+#settingsMenu label{
+  font-weight:bold;
+  font-size:14px;
+}
+#settingsMenu select,
+#settingsMenu input{
+  background:var(--panel2);
+  color:var(--text);
+  border:none;
+  padding:8px;
+  border-radius:8px;
+  width:100%;
+}
 </style>
 </head>
 <body>
@@ -50,6 +99,9 @@ button:hover{background:var(--accent);}
 <input type="text" id="search" placeholder="Search your music...">
 <button id="settingsBtn">⚙</button>
 </header>
+
+<!-- Overlay for blur effect -->
+<div id="settingsOverlay"></div>
 
 <div id="settingsMenu">
 <label>Upload Music Folder</label>
@@ -116,6 +168,7 @@ button:hover{background:var(--accent);}
 </div>
 
 <audio id="audio" autoplay></audio>
+
 <script>
 // ================= CORE DATA =================
 let songs = [];
@@ -133,9 +186,7 @@ const lyrics = document.getElementById("lyrics");
 const playlistSelect = document.getElementById("playlistSelect");
 
 // ================= UTIL =================
-function generateID(){
-  return "_" + Math.random().toString(36).substr(2,9);
-}
+function generateID(){ return "_" + Math.random().toString(36).substr(2,9); }
 
 function savePlaylists(){
   localStorage.setItem("playlists", JSON.stringify(playlists));
@@ -185,44 +236,13 @@ function renamePlaylist(oldName){
   showPlaylists();
 }
 
-// ================= EXPORT / IMPORT =================
-function exportPlaylists(){
-  let data = JSON.stringify(playlists);
-  let blob = new Blob([data],{type:"application/json"});
-  let url = URL.createObjectURL(blob);
-  let a = document.createElement("a");
-  a.href = url;
-  a.download = "playlists.json";
-  a.click();
-}
-
-function importPlaylists(file){
-  let reader = new FileReader();
-  reader.onload = e=>{
-    playlists = JSON.parse(e.target.result);
-    savePlaylists();
-  };
-  reader.readAsText(file);
-}
-
 // ================= SONG UPLOAD =================
 document.getElementById("folderInput").addEventListener("change", e=>{
   songs = [];
   queue = [];
-
-  const files = Array.from(e.target.files).filter(f =>
-    f.name.toLowerCase().match(/\.(mp3|wav|ogg)$/)
-  );
-
+  const files = Array.from(e.target.files).filter(f => f.name.toLowerCase().match(/\.(mp3|wav|ogg)$/));
   files.forEach(file=>{
-    let song = {
-      id: generateID(),
-      name: file.name.replace(/\.[^/.]+$/,""),
-      url: URL.createObjectURL(file),
-      art: "",
-      lyrics: "Lyrics unavailable"
-    };
-
+    let song = { id: generateID(), name: file.name.replace(/\.[^/.]+$/,""), url: URL.createObjectURL(file), art:"", lyrics:"Lyrics unavailable"};
     jsmediatags.read(file,{
       onSuccess: tag=>{
         if(tag.tags.picture){
@@ -232,10 +252,8 @@ document.getElementById("folderInput").addEventListener("change", e=>{
         }
       }
     });
-
     songs.push(song);
   });
-
   queue=[...songs];
   showLibrary();
   if(songs.length>0) playSong(0);
@@ -244,7 +262,6 @@ document.getElementById("folderInput").addEventListener("change", e=>{
 // ================= LIBRARY =================
 function showLibrary(){
   content.innerHTML="";
-
   songs.forEach((s,i)=>{
     let div=document.createElement("div");
     div.className="song";
@@ -253,18 +270,15 @@ function showLibrary(){
     let btn=document.createElement("button");
     btn.textContent="+";
     btn.className="add-to-playlist";
-
     btn.onclick=(ev)=>{
       ev.stopPropagation();
       let p=playlistSelect.value;
       if(!p) return;
-
       if(!playlists[p].songs.includes(s.id)){
         playlists[p].songs.push(s.id);
         savePlaylists();
       }
     };
-
     div.appendChild(btn);
     div.onclick=()=>playSong(i);
     content.appendChild(div);
@@ -274,9 +288,7 @@ function showLibrary(){
 // ================= PLAYLIST PAGE =================
 function showPlaylists(){
   content.innerHTML="";
-
   for(let pl in playlists){
-
     let wrapper=document.createElement("div");
     wrapper.style.border="1px solid var(--accent)";
     wrapper.style.padding="10px";
@@ -293,11 +305,9 @@ function showPlaylists(){
     title.style.fontWeight="bold";
 
     let controls=document.createElement("div");
-
     let renameBtn=document.createElement("button");
     renameBtn.textContent="✏";
     renameBtn.onclick=()=>renamePlaylist(pl);
-
     controls.appendChild(renameBtn);
     header.appendChild(title);
     header.appendChild(controls);
@@ -340,7 +350,6 @@ function showPlaylists(){
       sdiv.appendChild(remove);
       wrapper.appendChild(sdiv);
     });
-
     content.appendChild(wrapper);
   }
 }
@@ -348,30 +357,16 @@ function showPlaylists(){
 // ================= PLAYBACK =================
 function playSong(i){
   if(!queue[i]) return;
-
   currentIndex=i;
   audio.src=queue[i].url;
   audio.play();
-
   trackName.textContent=queue[i].name;
   lyrics.textContent=queue[i].lyrics;
   albumArt.style.backgroundImage=queue[i].art?`url('${queue[i].art}')`:"";
 }
-
 function togglePlay(){audio.paused?audio.play():audio.pause();}
-function nextSong(){
-  if(queue.length===0) return;
-  currentIndex = shuffle
-    ? Math.floor(Math.random()*queue.length)
-    : (currentIndex+1)%queue.length;
-  playSong(currentIndex);
-}
-function prevSong(){
-  if(queue.length===0) return;
-  currentIndex=(currentIndex-1+queue.length)%queue.length;
-  playSong(currentIndex);
-}
-
+function nextSong(){if(queue.length===0)return; currentIndex=shuffle?Math.floor(Math.random()*queue.length):(currentIndex+1)%queue.length; playSong(currentIndex);}
+function prevSong(){if(queue.length===0)return; currentIndex=(currentIndex-1+queue.length)%queue.length; playSong(currentIndex);}
 audio.onended=()=>repeat?playSong(currentIndex):nextSong();
 
 // ================= SEARCH =================
@@ -389,8 +384,45 @@ document.getElementById("search").oninput=e=>{
   });
 };
 
+// ================= SETTINGS PANEL =================
+const settingsBtn=document.getElementById("settingsBtn");
+const settingsMenu=document.getElementById("settingsMenu");
+const settingsOverlay=document.getElementById("settingsOverlay");
+
+function openSettings(){
+  settingsMenu.classList.add("active");
+  settingsOverlay.classList.add("active");
+  document.body.style.overflow="hidden";
+}
+function closeSettings(){
+  settingsMenu.classList.remove("active");
+  settingsOverlay.classList.remove("active");
+  document.body.style.overflow="hidden";
+}
+settingsBtn.addEventListener("click",(e)=>{
+  e.stopPropagation();
+  settingsMenu.classList.contains("active")?closeSettings():openSettings();
+});
+settingsOverlay.addEventListener("click",closeSettings);
+document.addEventListener("keydown",(e)=>{if(e.key==="Escape")closeSettings();});
+
+// ================= DRAG =================
+let isDragging=false, offsetX=0, offsetY=0;
+settingsMenu.addEventListener("mousedown",(e)=>{
+  isDragging=true; settingsMenu.style.cursor="grabbing";
+  const rect=settingsMenu.getBoundingClientRect();
+  offsetX=e.clientX-rect.left;
+  offsetY=e.clientY-rect.top;
+  settingsMenu.style.transform="none";
+  settingsMenu.style.left=rect.left+"px";
+  settingsMenu.style.top=rect.top+"px";
+});
+document.addEventListener("mousemove",(e)=>{if(!isDragging)return; settingsMenu.style.left=(e.clientX-offsetX)+"px"; settingsMenu.style.top=(e.clientY-offsetY)+"px";});
+document.addEventListener("mouseup",()=>{isDragging=false; settingsMenu.style.cursor="grab";});
+
 // ================= INIT =================
 window.onload=()=>loadPlaylists();
 </script>
+
 </body>
 </html>
