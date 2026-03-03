@@ -73,9 +73,6 @@ button:hover{background:var(--accent);}
 <button onclick="addPlaylist()">Add Playlist</button>
 <button onclick="deletePlaylist()">Delete Playlist</button>
 
-<label>Theme</label>
-<select id="themeSelect"></select>
-
 <label>Layout</label>
 <select id="layoutSelect">
 <option value="default">Default</option>
@@ -83,15 +80,6 @@ button:hover{background:var(--accent);}
 <option value="layout-minimal">Minimal</option>
 <option value="layout-topbar">Topbar</option>
 <option value="DJ">DJ Mode</option>
-</select>
-
-<label>Equalizer Preset</label>
-<select id="eqPreset">
-<option value="flat">Flat</option>
-<option value="pop">Pop</option>
-<option value="rock">Rock</option>
-<option value="jazz">Jazz</option>
-<option value="classical">Classical</option>
 </select>
 </div>
 
@@ -127,10 +115,10 @@ button:hover{background:var(--accent);}
 <div id="eq"></div>
 </div>
 
-<audio id="audio" autoplay></audio>
+<audio id="audio"></audio>
 
 <script>
-// ================= CORE DATA =================
+// ===== CORE DATA =====
 let songs=[], queue=[], currentIndex=0, shuffle=false, repeat=false, playlists={}, libraryTree={};
 const audio=document.getElementById("audio");
 const content=document.getElementById("content");
@@ -139,7 +127,7 @@ const albumArt=document.getElementById("albumArt");
 const lyrics=document.getElementById("lyrics");
 const playlistSelect=document.getElementById("playlistSelect");
 
-// ================= LOCAL STORAGE =================
+// ===== LOCAL STORAGE =====
 function saveState(){
     localStorage.setItem("songs", JSON.stringify(songs.map(s=>({id:s.id,name:s.name,art:s.art,lyrics:s.lyrics,fileName:s.file? s.file.name:null}))));
     localStorage.setItem("queue", JSON.stringify(queue.map(s=>s.id)));
@@ -160,20 +148,17 @@ function loadState(){
     }
 }
 
-// ================= UTIL =================
+// ===== UTIL =====
 function generateID(){ return "_" + Math.random().toString(36).substr(2,9); }
-function savePlaylists(){ localStorage.setItem("playlists", JSON.stringify(playlists)); updatePlaylistSelect(); }
-function loadPlaylists(){ let data=localStorage.getItem("playlists"); if(data) playlists=JSON.parse(data); updatePlaylistSelect(); }
 function updatePlaylistSelect(){ playlistSelect.innerHTML=""; Object.keys(playlists).forEach(p=>{ let o=document.createElement("option"); o.value=p; o.textContent=p; playlistSelect.appendChild(o); }); }
 
-// ================= FOLDER UPLOAD =================
+// ===== UPLOAD FOLDER =====
 document.getElementById("folderInput").addEventListener("change", e=>{
     const files=Array.from(e.target.files).filter(f=>f.name.match(/\.(mp3|wav|ogg)$/i));
     files.forEach(file=>{
         const parts=(file.webkitRelativePath||file.name).split('/');
         insertIntoTree(libraryTree, parts, file);
     });
-    restoreQueueAfterUpload(files);
     renderLibrary();
     saveState();
 });
@@ -199,15 +184,12 @@ function insertIntoTree(tree, pathParts, file){
     }
 }
 
-function addSongToQueue(song){ songs.push(song); queue.push(song); }
-
-// ================= RESTORE QUEUE =================
-function restoreQueueAfterUpload(files){
-    const fileNames=files.map(f=>f.name);
-    queue=queue.filter(s=>fileNames.includes(s.fileName));
+function addSongToQueue(song){ 
+    if(!songs.find(s=>s.id===song.id)) songs.push(song); 
+    if(!queue.find(s=>s.id===song.id)) queue.push(song); 
 }
 
-// ================= RENDER LIBRARY =================
+// ===== LIBRARY RENDER =====
 function renderLibrary(tree=libraryTree, parent=content){
     parent.innerHTML="";
     Object.keys(tree).forEach(key=>{
@@ -224,7 +206,7 @@ function renderLibrary(tree=libraryTree, parent=content){
                 let p=playlistSelect.value;
                 if(!p) return;
                 if(!playlists[p].songs.includes(s.id)){
-                    playlists[p].songs.push(s.id); savePlaylists();
+                    playlists[p].songs.push(s.id); saveState(); updatePlaylistSelect();
                 }
             };
             div.appendChild(btn);
@@ -246,15 +228,16 @@ function renderLibrary(tree=libraryTree, parent=content){
     });
 }
 
-// ================= SETTINGS PANEL =================
-const settingsBtn=document.getElementById("settingsBtn");
-const settingsMenu=document.getElementById("settingsMenu");
-const settingsOverlay=document.getElementById("settingsOverlay");
-settingsBtn.addEventListener("click",()=>settingsMenu.classList.toggle("active")&&settingsOverlay.classList.toggle("active"));
-settingsOverlay.addEventListener("click",()=>{settingsMenu.classList.remove("active"); settingsOverlay.classList.remove("active");});
-
-// ================= PLAYBACK =================
-function playSong(i){ if(!queue[i]) return; currentIndex=i; audio.src=queue[i].file?URL.createObjectURL(queue[i].file):queue[i].url; audio.play(); trackName.textContent=queue[i].name; lyrics.textContent=queue[i].lyrics; albumArt.style.backgroundImage=queue[i].art?`url('${queue[i].art}')`:""; }
+// ===== PLAYBACK =====
+function playSong(i){ 
+    if(!queue[i]) return; 
+    currentIndex=i; 
+    audio.src=queue[i].file?URL.createObjectURL(queue[i].file):queue[i].url; 
+    audio.play(); 
+    trackName.textContent=queue[i].name; 
+    lyrics.textContent=queue[i].lyrics; 
+    albumArt.style.backgroundImage=queue[i].art?`url('${queue[i].art}')`:""; 
+}
 function togglePlay(){ audio.paused?audio.play():audio.pause(); }
 function nextSong(){ if(queue.length===0)return; currentIndex=shuffle?Math.floor(Math.random()*queue.length):(currentIndex+1)%queue.length; playSong(currentIndex);}
 function prevSong(){ if(queue.length===0)return; currentIndex=(currentIndex-1+queue.length)%queue.length; playSong(currentIndex);}
@@ -262,7 +245,7 @@ audio.onended=()=>repeat?playSong(currentIndex):nextSong();
 function toggleShuffle(){ shuffle=!shuffle; alert("Shuffle: "+(shuffle?"ON":"OFF")); }
 function toggleRepeat(){ repeat=!repeat; alert("Repeat: "+(repeat?"ON":"OFF")); }
 
-// ================= SEARCH =================
+// ===== SEARCH =====
 document.getElementById("search").oninput=e=>{
     let q=e.target.value.toLowerCase();
     content.innerHTML="";
@@ -277,11 +260,28 @@ document.getElementById("search").oninput=e=>{
     });
 };
 
-// ================= PLAYLIST MANAGEMENT =================
-function addPlaylist(){ let name=document.getElementById("playlistNameInput").value.trim(); if(!name||playlists[name]) return; playlists[name]={songs:[]}; savePlaylists(); document.getElementById("playlistNameInput").value=""; }
-function deletePlaylist(){ let p=playlistSelect.value; if(p){ delete playlists[p]; savePlaylists(); showPlaylists(); } }
-function renamePlaylist(oldName){ let newName=prompt("New playlist name:"); if(!newName||playlists[newName]) return; playlists[newName]=playlists[oldName]; delete playlists[oldName]; savePlaylists(); showPlaylists(); }
-function showLibrary(){ renderLibrary(); }
+// ===== PLAYLISTS =====
+function addPlaylist(){ 
+    let name=document.getElementById("playlistNameInput").value.trim(); 
+    if(!name||playlists[name]) return; 
+    playlists[name]={songs:[]}; 
+    saveState(); 
+    document.getElementById("playlistNameInput").value=""; 
+    updatePlaylistSelect();
+}
+function deletePlaylist(){ 
+    let p=playlistSelect.value; 
+    if(p){ delete playlists[p]; saveState(); showPlaylists(); updatePlaylistSelect(); } 
+}
+function renamePlaylist(oldName){ 
+    let newName=prompt("New playlist name:"); 
+    if(!newName||playlists[newName]) return; 
+    playlists[newName]=playlists[oldName]; 
+    delete playlists[oldName]; 
+    saveState(); 
+    showPlaylists(); 
+    updatePlaylistSelect();
+}
 function showPlaylists(){
     content.innerHTML="";
     Object.keys(playlists).forEach(pl=>{
@@ -297,14 +297,14 @@ function showPlaylists(){
             const song=songs.find(s=>s.id===songID); if(!song) return;
             const sdiv=document.createElement("div"); sdiv.className="song"; sdiv.textContent=song.name;
             sdiv.onclick=()=>{ queue=playlists[pl].songs.map(id=>songs.find(s=>s.id===id)).filter(Boolean); playSong(index); };
-            const remove=document.createElement("button"); remove.textContent="x"; remove.onclick=ev=>{ ev.stopPropagation(); playlists[pl].songs.splice(index,1); savePlaylists(); showPlaylists(); };
+            const remove=document.createElement("button"); remove.textContent="x"; remove.onclick=ev=>{ ev.stopPropagation(); playlists[pl].songs.splice(index,1); saveState(); showPlaylists(); };
             sdiv.appendChild(remove); wrapper.appendChild(sdiv);
         });
         content.appendChild(wrapper);
     });
 }
 
-// ================= QUEUE VIEW =================
+// ===== QUEUE =====
 function showQueue(){
     content.innerHTML="";
     if(queue.length===0){ content.textContent="Queue is empty."; return; }
@@ -316,16 +316,13 @@ function showQueue(){
         content.appendChild(div);
     });
 }
+function shuffleArray(array){ const arr=[...array]; for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
 
-function shuffleArray(array){
-    const arr=[...array]; for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr;
-}
-
-// ================= INIT =================
+// ===== INIT =====
 window.onload=()=>{
-    loadPlaylists();
     loadState();
     renderLibrary();
+    updatePlaylistSelect();
 };
 </script>
 </body>
