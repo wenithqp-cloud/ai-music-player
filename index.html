@@ -296,7 +296,39 @@ document.getElementById("search").oninput=e=>{
     });
 }
 
-// QUEUE & PLAYLISTS
+// DRAG & DROP
+function makeDraggable(container, updateCallback){
+    let dragSrcEl=null;
+    function handleDragStart(e){ dragSrcEl=this; e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/html', this.innerHTML); this.style.opacity='0.5'; }
+    function handleDragOver(e){ if(e.preventDefault) e.preventDefault(); e.dataTransfer.dropEffect='move'; return false; }
+    function handleDrop(e){ if(e.stopPropagation) e.stopPropagation(); if(dragSrcEl!=this){ let tmp=dragSrcEl.innerHTML; dragSrcEl.innerHTML=this.innerHTML; this.innerHTML=tmp; updateCallback(dragSrcEl,this); } return false; }
+    function handleDragEnd(e){ this.style.opacity='1'; }
+    Array.from(container.children).forEach(function(item){
+        item.setAttribute('draggable','true');
+        item.addEventListener('dragstart', handleDragStart, false);
+        item.addEventListener('dragover', handleDragOver, false);
+        item.addEventListener('drop', handleDrop, false);
+        item.addEventListener('dragend', handleDragEnd, false);
+    });
+}
+function updateQueueAfterDrag(el1,el2){
+    const idx1=queue.findIndex(s=>el1.textContent.includes(s.name));
+    const idx2=queue.findIndex(s=>el2.textContent.includes(s.name));
+    if(idx1<0||idx2<0) return;
+    [queue[idx1], queue[idx2]]=[queue[idx2], queue[idx1]];
+    saveState();
+}
+function updatePlaylistAfterDrag(plName, el1, el2){
+    const pl=playlists[plName];
+    if(!pl) return;
+    const idx1=pl.songs.findIndex(id=>songs.find(s=>s.id===id)?.name===el1.textContent.replace('x','').trim());
+    const idx2=pl.songs.findIndex(id=>songs.find(s=>s.id===id)?.name===el2.textContent.replace('x','').trim());
+    if(idx1<0||idx2<0) return;
+    [pl.songs[idx1], pl.songs[idx2]]=[pl.songs[idx2], pl.songs[idx1]];
+    saveState();
+}
+
+// QUEUE & PLAYLISTS WITH DRAG
 function showQueue(){ 
     content.innerHTML=""; 
     if(queue.length===0){ content.textContent="Queue is empty."; return; } 
@@ -307,8 +339,10 @@ function showQueue(){
         if(i===currentIndex) div.classList.add("active"); 
         div.onclick=()=>playSong(i); 
         content.appendChild(div); 
-    }); 
+    });
+    makeDraggable(content, updateQueueAfterDrag);
 }
+
 function showPlaylists(){ 
     content.innerHTML=""; 
     Object.keys(playlists).forEach(pl=>{
@@ -362,6 +396,7 @@ function showPlaylists(){
             wrapper.appendChild(sdiv); 
         }); 
         content.appendChild(wrapper); 
+        makeDraggable(wrapper, (el1,el2)=>updatePlaylistAfterDrag(pl,el1,el2));
     }); 
 }
 
@@ -372,6 +407,5 @@ window.onload=()=>{
     renderLibrary();
 };
 </script>
-
 </body>
 </html>
